@@ -24,11 +24,12 @@ type WorkingCopy interface {
 	// Current returns the Rev the working copy is currently updated to.
 	Current() (Rev, error)
 
-	// Add adds a file to the next commit.
-	Add(path string) error
+	// Add adds files to the next commit.
+	Add(paths []string) error
 
-	// Commit creates a new changeset and returns its Rev.
-	Commit(message string) (Rev, error)
+	// Commit creates a new changeset.
+	// If files is nil, all dirty files will be committed.
+	Commit(message string, files []string) error
 
 	// Update updates the working copy to a specific changeset.
 	// If the Rev is nil, then the most recent changeset is used.

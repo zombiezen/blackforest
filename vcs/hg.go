@@ -2,6 +2,7 @@ package vcs
 
 import (
 	"encoding/hex"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,6 +73,19 @@ func (wc *mercurialWC) cmd(args ...string) *exec.Cmd {
 	return c
 }
 
+func (wc *mercurialWC) identify(args ...string) (Rev, error) {
+	const op = "identify"
+	out, err := wc.cmd(append([]string{"identify", "--debug", "-i"}, args...)...).Output()
+	if err != nil {
+		return nil, &mercurialError{Op: op, Path: wc.path, Err: err}
+	}
+	rev, err := parseIdentifyOutput(out)
+	if err != nil {
+		return nil, &mercurialError{Op: op, Path: wc.path, Err: err}
+	}
+	return rev, nil
+}
+
 func (wc *mercurialWC) VCS() VCS {
 	return wc.hg
 }
@@ -81,22 +95,55 @@ func (wc *mercurialWC) Path() string {
 }
 
 func (wc *mercurialWC) Current() (Rev, error) {
-	// TODO
-	return nil, nil
+	return wc.identify()
 }
 
-func (wc *mercurialWC) Add(path string) error {
-	// TODO
+func (wc *mercurialWC) Add(paths []string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	args := make([]string, len(paths)+1)
+	args[0] = "add"
+	for i, p := range paths {
+		args[i+1] = "path:" + p
+	}
+	if err := wc.cmd(args...).Run(); err != nil {
+		return &mercurialError{Op: "add", Path: wc.path, Err: err}
+	}
 	return nil
 }
 
-func (wc *mercurialWC) Commit(message string) (Rev, error) {
-	// TODO
-	return nil, nil
+func (wc *mercurialWC) Commit(message string, files []string) error {
+	var args []string
+	if files == nil {
+		args = []string{"commit", "-m", message}
+	} else {
+		if len(files) == 0 {
+			return &mercurialError{Op: "commit", Path: wc.path, Err: errors.New("empty commit")}
+		}
+		args = make([]string, 0, len(files)+3)
+		args = append(args, "commit", "-m", message)
+		for _, f := range files {
+			args = append(args, "path:"+f)
+		}
+	}
+	if err := wc.cmd(args...).Run(); err != nil {
+		return &mercurialError{Op: "commit", Path: wc.path, Err: err}
+	}
+	return nil
 }
 
 func (wc *mercurialWC) Update(rev Rev) error {
-	// TODO
+	var c *exec.Cmd
+	if rev == nil {
+		c = wc.cmd("update")
+	} else {
+		// TODO: check if rev is type mercurialRev?
+		c = wc.cmd("update", "-r", rev.Rev())
+	}
+	if err := c.Run(); err != nil {
+		return &mercurialError{Op: "update", Path: wc.path, Err: err}
+	}
 	return nil
 }
 
@@ -109,16 +156,7 @@ func (wc *mercurialWC) ParseRev(s string) (Rev, error) {
 			return rev, nil
 		}
 	}
-
-	out, err := wc.cmd("identify", "-i", "-r", s).Output()
-	if err != nil {
-		return nil, err
-	}
-	var rev mercurialRev
-	if _, err := hex.Decode(rev[:], out); err != nil {
-		return nil, err
-	}
-	return rev, nil
+	return wc.identify("-r", s)
 }
 
 type mercurialRev [mercurialRevSize]byte
@@ -129,4 +167,21 @@ func (r mercurialRev) Rev() string {
 
 func (r mercurialRev) String() string {
 	return hex.EncodeToString(r[:6])
+}
+
+func parseIdentifyOutput(out []byte) (mercurialRev, error) {
+	for i := len(out) - 1; i >= 0; i++ {
+		if c := out[i]; c != '\n' && c != '+' {
+			out = out[:i+1]
+			break
+		}
+	}
+	if len(out) != hex.EncodedLen(mercurialRevSize) {
+		return mercurialRev{}, errors.New("wrong rev size")
+	}
+	var rev mercurialRev
+	if _, err := hex.Decode(rev[:], out); err != nil {
+		return mercurialRev{}, err
+	}
+	return rev, nil
 }
