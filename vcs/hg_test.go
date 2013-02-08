@@ -2,7 +2,6 @@ package vcs
 
 import (
 	"bytes"
-	"reflect"
 	"testing"
 )
 
@@ -19,21 +18,37 @@ func newIsolatedMercurialWC(path string, c mockCommander) *mercurialWC {
 
 func TestMercurialCurrent(t *testing.T) {
 	mc := mockCommander{
-		{Out: *bytes.NewBufferString("0d9c2b3c7bce68ef9950d237eac5ff67f117bff5\n")},
+		{
+			Out:        *bytes.NewBufferString("0d9c2b3c7bce68ef9950d237eac5ff67f117bff5\n"),
+			ExpectDir:  desiredWC,
+			ExpectArgs: []string{"hg", "identify", "--debug", "-i"},
+		},
 	}
 	wc := newIsolatedMercurialWC(desiredWC, mc)
 	rev, err := wc.Current()
+	mc.check(t)
 	if err != nil {
 		t.Errorf("wc.Current() error: %v", err)
 	}
 	if r := magicHgRev; rev != r {
 		t.Errorf("wc.Current() = %v; want %v", rev.Rev(), r.Rev())
 	}
-	if d := mc[0].Dir; d != desiredWC {
-		t.Errorf("cd = %v; want %v", d, desiredWC)
+}
+
+func TestMercurialAdd(t *testing.T) {
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBuffer([]byte{}),
+			ExpectDir:  desiredWC,
+			ExpectArgs: []string{"hg", "add", "path:foo", "path:bar"},
+		},
 	}
-	if args, want := mc[0].Args, ([]string{"hg", "identify", "--debug", "-i"}); !reflect.DeepEqual(args, want) {
-		t.Errorf("args = %v; want %v", args, want)
+	wc := newIsolatedMercurialWC(desiredWC, mc)
+	files := []string{"foo", "bar"}
+	err := wc.Add(files)
+	mc.check(t)
+	if err != nil {
+		t.Errorf("wc.Add(%q) error: %v", files, err)
 	}
 }
 

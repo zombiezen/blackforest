@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"reflect"
+	"testing"
 )
 
 var (
-	errMockCmd = errors.New("mock command")
+	errMockCmd     = errors.New("mock command")
 	errTooManyCmds = errors.New("too many commands")
 )
 
@@ -23,8 +25,22 @@ func (mc *mockCommander) command(program string, args ...string) command {
 	return c
 }
 
+func (mc mockCommander) check(t *testing.T) {
+	for i := range mc {
+		c := &mc[i]
+		if c.Dir != c.ExpectDir {
+			t.Errorf("command[%d]: cd = %v; want %v", i, c.Dir, c.ExpectDir)
+		}
+		if !reflect.DeepEqual(c.Args, c.ExpectArgs) {
+			t.Errorf("command[%d]: args = %q; want %q", i, c.Args, c.ExpectArgs)
+		}
+	}
+}
+
 type mockCommand struct {
-	Out bytes.Buffer
+	Out        bytes.Buffer
+	ExpectArgs []string
+	ExpectDir  string
 
 	Args []string
 	Dir  string
