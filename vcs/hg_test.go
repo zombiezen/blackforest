@@ -52,6 +52,79 @@ func TestMercurialAdd(t *testing.T) {
 	}
 }
 
+func TestMercurialCommit(t *testing.T) {
+	const commitMessage = "Hello, World!"
+
+	// files==nil test
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  desiredWC,
+				ExpectArgs: []string{"hg", "commit", "-m", commitMessage},
+			},
+		}
+		wc := newIsolatedMercurialWC(desiredWC, mc)
+		err := wc.Commit("Hello, World!", nil)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Commit(%q, nil) error: %v", commitMessage, err)
+		}
+	}
+
+	// files!=nil test
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  desiredWC,
+				ExpectArgs: []string{"hg", "commit", "-m", commitMessage, "path:foo", "path:bar"},
+			},
+		}
+		wc := newIsolatedMercurialWC(desiredWC, mc)
+		files := []string{"foo", "bar"}
+		err := wc.Commit("Hello, World!", files)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Commit(%q, %q) error: %v", commitMessage, files, err)
+		}
+	}
+}
+
+func TestMercurialUpdate(t *testing.T) {
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  desiredWC,
+				ExpectArgs: []string{"hg", "update"},
+			},
+		}
+		wc := newIsolatedMercurialWC(desiredWC, mc)
+		err := wc.Update(nil)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Update(nil) error: %v", err)
+		}
+	}
+
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  desiredWC,
+				ExpectArgs: []string{"hg", "update", "-r", magicHgRev.Rev()},
+			},
+		}
+		wc := newIsolatedMercurialWC(desiredWC, mc)
+		err := wc.Update(magicHgRev)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Update(%v) error: %v", magicHgRev, err)
+		}
+	}
+}
+
 func TestParseIdentifyOutput(t *testing.T) {
 	tests := []struct {
 		Arg   string
