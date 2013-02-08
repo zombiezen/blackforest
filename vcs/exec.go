@@ -2,6 +2,7 @@ package vcs
 
 import (
 	"io"
+	"os/exec"
 )
 
 type commander interface {
@@ -19,4 +20,18 @@ type command interface {
 	StdinPipe() (io.WriteCloser, error)
 	StdoutPipe() (io.ReadCloser, error)
 	Wait() error
+}
+
+type execCommander struct{}
+
+func (execCommander) command(program string, args ...string) command {
+	return execCmd{exec.Command(program, args...)}
+}
+
+type execCmd struct {
+	*exec.Cmd
+}
+
+func (e execCmd) SetDir(dir string) {
+	e.Cmd.Dir = dir
 }

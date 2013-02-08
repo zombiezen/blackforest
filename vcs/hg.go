@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -23,17 +22,19 @@ func (e *mercurialError) Error() string {
 type Mercurial struct {
 	// Program is the path of the Mercurial executable.
 	Program string
+
+	commander commander
 }
 
 var _ VCS = new(Mercurial)
 
-// cmd creates an exec.Cmd for the given arguments.
-func (hg *Mercurial) cmd(args ...string) *exec.Cmd {
+// cmd creates a command for the given arguments.
+func (hg *Mercurial) cmd(args ...string) command {
 	prog := hg.Program
 	if prog == "" {
 		prog = "hg"
 	}
-	return exec.Command(prog, args...)
+	return hg.commander.command(prog, args...)
 }
 
 func (hg *Mercurial) IsWorkingCopy(path string) (bool, error) {
@@ -67,9 +68,9 @@ type mercurialWC struct {
 	path string
 }
 
-func (wc *mercurialWC) cmd(args ...string) *exec.Cmd {
+func (wc *mercurialWC) cmd(args ...string) command {
 	c := wc.hg.cmd(args...)
-	c.Dir = wc.path
+	c.SetDir(wc.path)
 	return c
 }
 
@@ -134,7 +135,7 @@ func (wc *mercurialWC) Commit(message string, files []string) error {
 }
 
 func (wc *mercurialWC) Update(rev Rev) error {
-	var c *exec.Cmd
+	var c command
 	if rev == nil {
 		c = wc.cmd("update")
 	} else {
