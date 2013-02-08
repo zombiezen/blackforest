@@ -19,6 +19,7 @@ func (e *mercurialError) Error() string {
 	return "hg: " + e.Op + " " + e.Path + ": " + e.Err.Error()
 }
 
+// Mercurial implements the VCS interface for interacting with Mercurial.
 type Mercurial struct {
 	// Program is the path of the Mercurial executable.
 	Program string
