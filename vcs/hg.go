@@ -171,7 +171,7 @@ func (r mercurialRev) String() string {
 }
 
 func parseIdentifyOutput(out []byte) (mercurialRev, error) {
-	for i := len(out) - 1; i >= 0; i++ {
+	for i := len(out) - 1; i >= 0; i-- {
 		if c := out[i]; c != '\n' && c != '+' {
 			out = out[:i+1]
 			break
