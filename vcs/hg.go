@@ -35,7 +35,11 @@ func (hg *Mercurial) cmd(args ...string) command {
 	if prog == "" {
 		prog = "hg"
 	}
-	return hg.commander.command(prog, args...)
+	commander := hg.commander
+	if commander == nil {
+		commander = execCommander{}
+	}
+	return commander.command(prog, args...)
 }
 
 func (hg *Mercurial) IsWorkingCopy(path string) (bool, error) {
