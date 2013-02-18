@@ -10,6 +10,7 @@ import (
 // A localCatalog is a catalog that uses the filesystem as storage.
 type localCatalog struct {
 	root string
+	fs   filesystem
 }
 
 // Open opens the catalog in a directory.
@@ -17,17 +18,17 @@ func Open(root string) (Catalog, error) {
 	var v struct {
 		Version int `json:"version"`
 	}
-	if err := readJSON(filepath.Join(root, versionFile), &v); err != nil {
+	if err := readJSON(realFilesystem{}, filepath.Join(root, versionFile), &v); err != nil {
 		return nil, err
 	}
 	if v.Version != 1 {
 		return nil, VersionError(v.Version)
 	}
-	return &localCatalog{root: root}, nil
+	return &localCatalog{root: root, fs: realFilesystem{}}, nil
 }
 
 func (cat *localCatalog) List() ([]string, error) {
-	dir, err := os.Open(filepath.Join(cat.root, projectsDir))
+	dir, err := cat.fs.Open(filepath.Join(cat.root, projectsDir))
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +61,7 @@ func (cat *localCatalog) GetProject(shortName string) (*Project, error) {
 	}
 	proj := new(Project)
 	path := filepath.Join(cat.root, projectsDir, shortName+jsonExt)
-	if err := readJSON(path, proj); err != nil {
+	if err := readJSON(cat.fs, path, proj); err != nil {
 		return proj, &projectError{ShortName: shortName, Op: op, Err: err}
 	}
 	return proj, nil
@@ -76,7 +77,7 @@ func (cat *localCatalog) PutProject(project *Project) (retErr error) {
 	}
 	return cat.doChange(func() error {
 		// Write project file
-		if err := writeJSON(cat.projectPath(sn), project, true); err != nil {
+		if err := writeJSON(cat.fs, cat.projectPath(sn), project, true); err != nil {
 			return &projectError{ShortName: sn, Op: op, Err: err}
 		}
 
@@ -92,7 +93,7 @@ func (cat *localCatalog) PutProject(project *Project) (retErr error) {
 
 		// Delete old file (if necessary)
 		if old != "" {
-			if err := os.Remove(cat.projectPath(old)); err != nil {
+			if err := cat.fs.Remove(cat.projectPath(old)); err != nil {
 				return &projectError{ShortName: sn, Op: op, Err: err}
 			}
 		}
@@ -123,7 +124,7 @@ func (cat *localCatalog) DelProject(shortName string) error {
 		}
 
 		// Delete file
-		if err := os.Remove(cat.projectPath(shortName)); err != nil {
+		if err := cat.fs.Remove(cat.projectPath(shortName)); err != nil {
 			return &projectError{ShortName: shortName, Op: op, Err: err}
 		}
 
@@ -139,7 +140,7 @@ func (cat *localCatalog) ShortName(id ID) (string, error) {
 	var c struct {
 		Map map[string]string `json:"id_to_shortname"`
 	}
-	if err := readJSON(filepath.Join(cat.root, catalogFile), &c); err != nil {
+	if err := readJSON(cat.fs, filepath.Join(cat.root, catalogFile), &c); err != nil {
 		return "", err
 	}
 	return c.Map[id.String()], nil
@@ -162,13 +163,13 @@ func (cat *localCatalog) doChange(f func() error) error {
 func (cat *localCatalog) rewriteCatalog(f func(*catalogMeta) error) error {
 	var c catalogMeta
 	p := filepath.Join(cat.root, catalogFile)
-	if err := readJSON(p, &c); err != nil {
+	if err := readJSON(cat.fs, p, &c); err != nil {
 		return err
 	}
 	if err := f(&c); err != nil {
 		return err
 	}
-	if err := writeJSON(p, &c, false); err != nil {
+	if err := writeJSON(cat.fs, p, &c, false); err != nil {
 		return err
 	}
 	return nil
@@ -180,9 +181,9 @@ func (cat *localCatalog) lockPath() string {
 
 func (cat *localCatalog) lock() error {
 	p := cat.lockPath()
-	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_EXCL|os.O_TRUNC, 0666)
+	f, err := cat.fs.Create(p, true)
 	if err != nil {
-		if os.IsExist(err) {
+		if cat.fs.IsExist(err) {
 			return ErrLocked
 		}
 		return err
@@ -191,13 +192,13 @@ func (cat *localCatalog) lock() error {
 	if err != nil {
 		// Error ignored.
 		// If the remove fails, the lock is already in a weird state, so there's not too much we can do.
-		os.Remove(p)
+		cat.fs.Remove(p)
 	}
 	return err
 }
 
 func (cat *localCatalog) unlock() error {
-	return os.Remove(cat.lockPath())
+	return cat.fs.Remove(cat.lockPath())
 }
 
 // A catalogMeta holds the schema for a catalog.json file.
