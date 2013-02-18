@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	IDSize = 9
+	IDSize       = 9
 	IDEncodedLen = 12
 )
 
@@ -29,9 +29,9 @@ func (id ID) String() string {
 }
 
 func (id ID) MarshalJSON() ([]byte, error) {
-	data := make([]byte, IDEncodedLen + 2)
-	data[0], data[len(data) - 1] = '"', '"'
-	idEncoding.Encode(data[1:len(data) - 1], id[:])
+	data := make([]byte, IDEncodedLen+2)
+	data[0], data[len(data)-1] = '"', '"'
+	idEncoding.Encode(data[1:len(data)-1], id[:])
 	return data, nil
 }
 
@@ -39,7 +39,7 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 	n := len(data)
 	if n == 0 || data[0] != '"' || data[n-1] != '"' {
 		return errors.New("attempt to unmarshal non-string ID from JSON")
-	} else if n != IDEncodedLen + 2 {
+	} else if n != IDEncodedLen+2 {
 		return errors.New("JSON ID has wrong size")
 	}
 	_, err := idEncoding.Decode((*id)[:], data[1:n-1])
