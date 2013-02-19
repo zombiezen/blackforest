@@ -29,10 +29,28 @@ func main() {
 }
 
 var commands = map[string]func([]string){
+	"init":   cmdInit,
 	"list":   cmdList,
 	"ls":     cmdList,
 	"show":   cmdShow,
 	"create": cmdCreate,
+}
+
+func cmdInit(args []string) {
+	const synopsis = "init -catalog=PATH"
+
+	fset := newFlagSet("init", synopsis)
+	parseFlags(fset, args)
+	if fset.NArg() != 0 {
+		exitSynopsis(synopsis)
+	}
+
+	if catalogPath == "" {
+		fail("GLADOS_PATH not set")
+	}
+	if _, err := catalog.Create(catalogPath); err != nil {
+		fail(err)
+	}
 }
 
 func cmdList(args []string) {
@@ -118,10 +136,10 @@ func cmdCreate(args []string) {
 		fail(err)
 	}
 	proj := &catalog.Project{
-		ID: id,
-		Name: name,
+		ID:        id,
+		Name:      name,
 		ShortName: *shortName,
-		Tags: tags,
+		Tags:      tags,
 	}
 	if err := cat.PutProject(proj); err != nil {
 		fail(err)
