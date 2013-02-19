@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 )
 
 func main() {
@@ -28,9 +29,10 @@ func main() {
 }
 
 var commands = map[string]func([]string){
-	"list": cmdList,
-	"ls":   cmdList,
-	"show": cmdShow,
+	"list":   cmdList,
+	"ls":     cmdList,
+	"show":   cmdShow,
+	"create": cmdCreate,
 }
 
 func cmdList(args []string) {
@@ -89,6 +91,73 @@ func cmdShow(args []string) {
 			fmt.Println("\n" + proj.Description)
 		}
 	}
+}
+
+func cmdCreate(args []string) {
+	const synopsis = "create [options] NAME"
+
+	fset := newFlagSet("create", synopsis)
+	shortName := fset.String("shortname", "", "identifier for project (default is lowercased full name)")
+	tagsFlag := fset.String("tags", "", "comma-separated tags to assign to the new project")
+	parseFlags(fset, args)
+	if fset.NArg() != 1 {
+		exitSynopsis(synopsis)
+	}
+	cat := requireCatalog()
+
+	name := strings.TrimSpace(fset.Arg(0))
+	if len(name) == 0 {
+		fail("empty name")
+	}
+	if *shortName == "" {
+		*shortName = sanitizeName(name)
+	}
+	tags := splitTags(*tagsFlag)
+	id, err := catalog.GenerateID()
+	if err != nil {
+		fail(err)
+	}
+	proj := &catalog.Project{
+		ID: id,
+		Name: name,
+		ShortName: *shortName,
+		Tags: tags,
+	}
+	if err := cat.PutProject(proj); err != nil {
+		fail(err)
+	}
+}
+
+func splitTags(val string) []string {
+	tags := strings.Split(val, ",")
+	for i := range tags {
+		tags[i] = strings.TrimSpace(tags[i])
+	}
+	for i := 0; i < len(tags); {
+		if tags[i] == "" {
+			tags = append(tags[:i], tags[i+1:]...)
+		} else {
+			i++
+		}
+	}
+	return tags
+}
+
+func sanitizeName(name string) string {
+	sn := make([]rune, 0, len(name))
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z' || r == '-' || r == '_':
+			sn = append(sn, r)
+		case r >= 'A' && r <= 'Z':
+			sn = append(sn, r-'A'+'a')
+		case r == ' ':
+			sn = append(sn, '-')
+		default:
+			sn = append(sn, '_')
+		}
+	}
+	return string(sn)
 }
 
 // global flags
