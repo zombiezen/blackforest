@@ -53,3 +53,21 @@ func TestLocalShortName(t *testing.T) {
 		t.Errorf("cat.ShortName() error = %v", err)
 	}
 }
+
+func TestLocalGetProject(t *testing.T) {
+	cat, _ := newTestCatalog()
+	proj, err := cat.GetProject("glados")
+	want := &Project{
+		ID:          ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d},
+		ShortName:   "glados",
+		Name:        "GLaDOS",
+		Description: "Giant Library and Distributed Organizing System",
+		Tags:        []string{"go", "http", "os", "tools"},
+	}
+	if !reflect.DeepEqual(proj, want) {
+		t.Errorf("cat.GetProject(%q) = %v; want %v", want.ShortName, proj, want)
+	}
+	if err != nil {
+		t.Errorf("cat.GetProject(%q) error = %v", want.ShortName, err)
+	}
+}
