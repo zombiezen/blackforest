@@ -19,6 +19,9 @@ type filesystem interface {
 	// Remove deletes a file.
 	Remove(path string) error
 
+	// Mkdir creates a directory.
+	Mkdir(path string) error
+
 	IsNotExist(e error) bool
 	IsExist(e error) bool
 }
@@ -35,6 +38,7 @@ type realFilesystem struct{}
 
 func (realFilesystem) Open(path string) (file, error) { return os.Open(path) }
 func (realFilesystem) Remove(path string) error       { return os.Remove(path) }
+func (realFilesystem) Mkdir(path string) error        { return os.Mkdir(path, 0777) }
 func (realFilesystem) IsExist(e error) bool           { return os.IsExist(e) }
 func (realFilesystem) IsNotExist(e error) bool        { return os.IsNotExist(e) }
 
