@@ -67,6 +67,10 @@ func (fs *mockFilesystem) Mkdir(path string) error {
 	return nil
 }
 
+func (fs *mockFilesystem) makeFile(path string, content string) {
+	fs.files[path] = []byte(content)
+}
+
 func (fs *mockFilesystem) Open(path string) (file, error) {
 	if data, ok := fs.files[path]; ok {
 		return &mockFile{
