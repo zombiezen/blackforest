@@ -13,18 +13,60 @@ type localCatalog struct {
 	fs   filesystem
 }
 
+// Create creates a new catalog at the given directory.
+func Create(root string) (Catalog, error) {
+	return create(realFilesystem{}, root)
+}
+
+func create(fs filesystem, root string) (*localCatalog, error) {
+	// Create root directory (must not exist)
+	if err := fs.Mkdir(root); err != nil {
+		return nil, err
+	}
+
+	// Lock catalog
+	cat := &localCatalog{root: root, fs: fs}
+	err := cat.doChange(func() error {
+		// Create projects directory
+		if err := fs.Mkdir(filepath.Join(root, projectsDir)); err != nil {
+			return err
+		}
+
+		// Create catalog
+		meta := &catalogMeta{
+			ShortNameMap: map[string]string{},
+		}
+		if err := writeJSON(fs, filepath.Join(root, catalogFile), meta, true); err != nil {
+			return err
+		}
+
+		// Write out version file
+		var v struct {
+			Version int `json:"version"`
+		}
+		v.Version = 1
+		if err := writeJSON(fs, filepath.Join(root, versionFile), &v, true); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	return cat, err
+}
+
 // Open opens the catalog in a directory.
 func Open(root string) (Catalog, error) {
+	fs := realFilesystem{}
 	var v struct {
 		Version int `json:"version"`
 	}
-	if err := readJSON(realFilesystem{}, filepath.Join(root, versionFile), &v); err != nil {
+	if err := readJSON(fs, filepath.Join(root, versionFile), &v); err != nil {
 		return nil, err
 	}
 	if v.Version != 1 {
 		return nil, VersionError(v.Version)
 	}
-	return &localCatalog{root: root, fs: realFilesystem{}}, nil
+	return &localCatalog{root: root, fs: fs}, nil
 }
 
 func (cat *localCatalog) List() ([]string, error) {

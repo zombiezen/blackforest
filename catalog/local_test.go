@@ -32,6 +32,37 @@ func newTestCatalog() (*localCatalog, *mockFilesystem) {
 	return &localCatalog{root: "foo", fs: fs}, fs
 }
 
+func TestLocalCreate(t *testing.T) {
+	const root = "foo"
+
+	fs := newMockFS()
+	cat, err := create(fs, root)
+	if err != nil {
+		t.Errorf("create(%q) error: %v", root, err)
+	}
+	if cat.root != root {
+		t.Errorf("cat.root = %q; want %q", cat.root, root)
+	}
+	fileChecks := []struct{
+		FileName string
+		Content string
+	}{
+		{"version.json", `{"version":1}` + "\n"},
+		{"catalog.json", `{"id_to_shortname":{}}` + "\n"},
+	}
+	for _, fc := range fileChecks {
+		name := filepath.Join(root, fc.FileName)
+		if data, ok := fs.files[name]; ok && string(data) != fc.Content {
+			t.Errorf("%v contents = %q; want %q", name, string(data), fc.Content)
+		} else if !ok {
+			t.Errorf("%q does not exist!", name)
+		}
+	}
+	if _, ok := fs.dirs[filepath.Join(root, "projects")]; !ok {
+		t.Error("projects directory does not exist")
+	}
+}
+
 func TestLocalList(t *testing.T) {
 	cat, _ := newTestCatalog()
 	list, err := cat.List()
