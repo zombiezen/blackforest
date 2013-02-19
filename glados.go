@@ -29,6 +29,7 @@ func main() {
 
 var commands = map[string]func([]string){
 	"list": cmdList,
+	"ls":   cmdList,
 	"show": cmdShow,
 }
 
