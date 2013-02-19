@@ -372,7 +372,6 @@ func TestMockFS_Dir(t *testing.T) {
 			if err != nil {
 				t.Error("open 1-file dir:", err)
 			}
-			t.Log(dir.(*mockFile).dir)
 			for i, call := range test {
 				fi, err := dir.Readdir(call.N)
 				if !reflect.DeepEqual(fi, call.Info) {
