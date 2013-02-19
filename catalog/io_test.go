@@ -125,13 +125,14 @@ func (fs *mockFilesystem) Remove(path string) error {
 			Op:   "remove",
 			Err:  os.ErrNotExist,
 		}
-	} else if isFile {
+	} else if !isFile {
 		return &os.PathError{
 			Path: path,
 			Op:   "remove",
 			Err:  os.ErrInvalid,
 		}
 	}
+	delete(fs.files, path)
 	return nil
 }
 
@@ -385,5 +386,23 @@ func TestMockFS_Dir(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestMockFS_Remove(t *testing.T) {
+	fs := newMockFS()
+	fs.files["foo"] = []byte{}
+	fs.dirs["bar"] = struct{}{}
+	if err := fs.Remove("foo"); err != nil {
+		t.Error("remove file:", err)
+	}
+	if _, ok := fs.files["foo"]; ok {
+		t.Error("file not removed")
+	}
+	if err := fs.Remove("bar"); err == nil {
+		t.Error("remove dir:", err)
+	}
+	if _, ok := fs.dirs["bar"]; !ok {
+		t.Error("dir removed")
 	}
 }
