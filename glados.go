@@ -34,6 +34,9 @@ var commands = map[string]func([]string){
 	"ls":     cmdList,
 	"show":   cmdShow,
 	"create": cmdCreate,
+	"delete": cmdDelete,
+	"del":    cmdDelete,
+	"rm":     cmdDelete,
 }
 
 func cmdInit(args []string) {
@@ -172,6 +175,28 @@ func cmdCreate(args []string) {
 	}
 	if err := cat.PutProject(proj); err != nil {
 		fail(err)
+	}
+}
+
+func cmdDelete(args []string) {
+	const synopsis = "delete NAME [...]"
+
+	fset := newFlagSet("delete", synopsis)
+	parseFlags(fset, args)
+	if fset.NArg() == 0 {
+		exitSynopsis(synopsis)
+	}
+	cat := requireCatalog()
+
+	failed := false
+	for _, name := range fset.Args() {
+		if err := cat.DelProject(name); err != nil {
+			failed = true
+			fmt.Fprintln(os.Stderr, err)
+		}
+	}
+	if failed {
+		os.Exit(exitFailure)
 	}
 }
 
