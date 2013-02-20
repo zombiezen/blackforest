@@ -105,23 +105,27 @@ func cmdPath(args []string) {
 }
 
 func cmdShow(args []string) {
-	const synopsis = "show PROJECT"
+	const synopsis = "show PROJECT [...]"
 
 	fset := newFlagSet("show", synopsis)
 	jsonFormat := fset.Bool("json", false, "print project as JSON")
 	rfc3339Time := fset.Bool("rfc3339", false, "print dates as RFC3339")
 	parseFlags(fset, args)
-	if fset.NArg() != 1 {
+	if fset.NArg() == 0 {
 		exitSynopsis(synopsis)
 	}
 	cat := requireCatalog()
 
-	proj, err := cat.GetProject(fset.Arg(0))
-	if err != nil {
-		fail(err)
-	}
 	if *jsonFormat {
-		if err := json.NewEncoder(os.Stdout).Encode(proj); err != nil {
+		projects := make([]*catalog.Project, 0, fset.NArg())
+		for _, shortName := range fset.Args() {
+			proj, err := cat.GetProject(shortName)
+			if err != nil {
+				fail(err)
+			}
+			projects = append(projects, proj)
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(projects); err != nil {
 			fail(err)
 		}
 	} else {
@@ -129,31 +133,48 @@ func cmdShow(args []string) {
 		if *rfc3339Time {
 			fmtTime = fmtRFC3339Time
 		}
-
-		fmt.Println(proj.Name)
-		showField("ID", proj.ID)
-		if info := proj.PerHost[host]; host != "" && info != nil {
-			showField("Path", info.Path)
-		}
-		if len(proj.Tags) != 0 {
-			sort.Strings(proj.Tags)
-			showField("Tags", strings.Join(proj.Tags, ", "))
-		}
-		showField("Created", fmtTime(proj.CreateTime))
-		showField("Added On", fmtTime(proj.CatalogTime))
-		if proj.Homepage != "" {
-			showField("URL", proj.Homepage)
-		}
-		if vcsInfo := proj.VCS; vcsInfo != nil {
-			if vcsInfo.URL != "" {
-				showField("VCS", vcsInfo.Type, vcsInfo.URL)
+		failed := false
+		for i, shortName := range fset.Args() {
+			if i > 0 {
+				fmt.Println()
+			}
+			if proj, err := cat.GetProject(shortName); err == nil {
+				showProject(proj, fmtTime)
 			} else {
-				showField("VCS", vcsInfo.Type)
+				fmt.Fprintln(os.Stderr, err)
+				failed = true
 			}
 		}
-		if proj.Description != "" {
-			fmt.Println("\n" + proj.Description)
+		if failed {
+			os.Exit(exitFailure)
 		}
+	}
+}
+
+func showProject(proj *catalog.Project, fmtTime func(time.Time) string) {
+	fmt.Println(proj.Name)
+	showField("ID", proj.ID)
+	if info := proj.PerHost[host]; host != "" && info != nil {
+		showField("Path", info.Path)
+	}
+	if len(proj.Tags) != 0 {
+		sort.Strings(proj.Tags)
+		showField("Tags", strings.Join(proj.Tags, ", "))
+	}
+	showField("Created", fmtTime(proj.CreateTime))
+	showField("Added On", fmtTime(proj.CatalogTime))
+	if proj.Homepage != "" {
+		showField("URL", proj.Homepage)
+	}
+	if vcsInfo := proj.VCS; vcsInfo != nil {
+		if vcsInfo.URL != "" {
+			showField("VCS", vcsInfo.Type, vcsInfo.URL)
+		} else {
+			showField("VCS", vcsInfo.Type)
+		}
+	}
+	if proj.Description != "" {
+		fmt.Println("\n" + proj.Description)
 	}
 }
 
