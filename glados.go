@@ -34,6 +34,8 @@ var commands = map[string]func([]string){
 	"init":   cmdInit,
 	"list":   cmdList,
 	"ls":     cmdList,
+	"mv":     cmdRename,
+	"rename": cmdRename,
 	"rm":     cmdDelete,
 	"show":   cmdShow,
 	"up":     cmdUpdate,
@@ -252,6 +254,27 @@ func cmdUpdate(args []string) {
 func updateString(s *string, f *optStringFlag) {
 	if f.present {
 		*s = f.s
+	}
+}
+
+func cmdRename(args []string) {
+	const synopsis = "rename SRC DST"
+
+	fset := newFlagSet("rename", synopsis)
+	parseFlags(fset, args)
+	if fset.NArg() != 2 {
+		exitSynopsis(synopsis)
+	}
+	cat := requireCatalog()
+
+	src, dst := fset.Arg(0), fset.Arg(1)
+	proj, err := cat.GetProject(src)
+	if err != nil {
+		fail(err)
+	}
+	proj.ShortName = dst
+	if err := cat.PutProject(proj); err != nil {
+		fail(err)
 	}
 }
 
