@@ -118,15 +118,12 @@ func (cat *localCatalog) PutProject(project *Project) (retErr error) {
 		return shortNameError(sn)
 	}
 	return cat.doChange(func() error {
-		// Write project file
-		if err := writeJSON(cat.fs, cat.projectPath(sn), project, true); err != nil {
-			return &projectError{ShortName: sn, Op: op, Err: err}
-		}
-
-		// Rewrite catalog
 		var old string
 		err := cat.rewriteCatalog(func(c *catalogMeta) error {
 			old, c.ShortNameMap[idString] = c.ShortNameMap[idString], sn
+			if err := writeJSON(cat.fs, cat.projectPath(sn), project, old != project.ShortName); err != nil {
+				return err
+			}
 			return nil
 		})
 		if err != nil {
@@ -134,7 +131,7 @@ func (cat *localCatalog) PutProject(project *Project) (retErr error) {
 		}
 
 		// Delete old file (if necessary)
-		if old != "" {
+		if old != "" && old != project.ShortName {
 			if err := cat.fs.Remove(cat.projectPath(old)); err != nil {
 				return &projectError{ShortName: sn, Op: op, Err: err}
 			}
