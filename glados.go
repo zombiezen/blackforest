@@ -94,6 +94,9 @@ func cmdShow(args []string) {
 	} else {
 		fmt.Println(proj.Name)
 		fmt.Println("ID:  ", proj.ID)
+		if info := proj.PerHost[host]; host != "" && info != nil {
+			fmt.Println("Path:", info.Path)
+		}
 		if len(proj.Tags) != 0 {
 			fmt.Print("Tags: ")
 			sort.Strings(proj.Tags)
@@ -124,9 +127,18 @@ func cmdShow(args []string) {
 func cmdCreate(args []string) {
 	const synopsis = "create [options] NAME"
 
+	proj := &catalog.Project{
+		VCS: new(catalog.VCSInfo),
+	}
+	var hostInfo catalog.HostInfo
+
 	fset := newFlagSet("create", synopsis)
-	shortName := fset.String("shortname", "", "identifier for project (default is lowercased full name)")
-	tagsFlag := fset.String("tags", "", "comma-separated tags to assign to the new project")
+	fset.StringVar(&proj.ShortName, "shortname", "", "identifier for project (default is lowercased full name)")
+	fset.Var((*tagsList)(&proj.Tags), "tags", "comma-separated tags to assign to the new project")
+	fset.StringVar(&hostInfo.Path, "path", "", "path of working copy")
+	fset.StringVar(&proj.Homepage, "url", "", "project homepage")
+	fset.StringVar(&proj.VCS.Type, "vcs", "", "type of VCS for project")
+	fset.StringVar(&proj.VCS.URL, "vcsurl", "", "project VCS URL")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
 		exitSynopsis(synopsis)
@@ -137,26 +149,43 @@ func cmdCreate(args []string) {
 	if len(name) == 0 {
 		fail("empty name")
 	}
-	if *shortName == "" {
-		*shortName = sanitizeName(name)
-	}
-	tags := splitTags(*tagsFlag)
+	proj.Name = name
 	id, err := catalog.GenerateID()
 	if err != nil {
 		fail(err)
 	}
-	proj := &catalog.Project{
-		ID:        id,
-		Name:      name,
-		ShortName: *shortName,
-		Tags:      tags,
+	proj.ID = id
+	if proj.ShortName == "" {
+		proj.ShortName = sanitizeName(name)
+	}
+	if proj.VCS.Type == "" {
+		proj.VCS = nil
+	} else if !isValidVCSType(proj.VCS.Type) {
+		// TODO(light): make this a dynamic list
+		failf("%q is not a valid -vcs\nvalid choices are: cvs, svn, hg, git, bzr, darcs\n", proj.VCS.Type)
+	}
+	if hostInfo.Path != "" {
+		if host == "" {
+			fail("-path given and " + HostEnv + " not set")
+		}
+		proj.PerHost = map[string]*catalog.HostInfo{host: &hostInfo}
 	}
 	if err := cat.PutProject(proj); err != nil {
 		fail(err)
 	}
 }
 
-func splitTags(val string) []string {
+func isValidVCSType(t string) bool {
+	return t == catalog.CVS || t == catalog.Subversion || t == catalog.Mercurial || t == catalog.Git || t == catalog.Bazaar || t == catalog.Darcs
+}
+
+type tagsList []string
+
+func (tl tagsList) String() string {
+	return strings.Join([]string(tl), ",")
+}
+
+func (tl *tagsList) Set(val string) error {
 	tags := strings.Split(val, ",")
 	for i := range tags {
 		tags[i] = strings.TrimSpace(tags[i])
@@ -168,7 +197,8 @@ func splitTags(val string) []string {
 			i++
 		}
 	}
-	return tags
+	*tl = tags
+	return nil
 }
 
 func sanitizeName(name string) string {
@@ -188,20 +218,26 @@ func sanitizeName(name string) string {
 	return string(sn)
 }
 
-const CatalogPathEnv = "GLADOS_PATH"
+const (
+	CatalogPathEnv = "GLADOS_PATH"
+	HostEnv        = "GLADOS_HOST"
+)
 
 // global flags
 var (
 	catalogPath string
+	host        string
 )
 
 func init() {
 	catalogPath = os.Getenv(CatalogPathEnv)
+	host = os.Getenv(HostEnv)
 }
 
 func newFlagSet(name string, synopsis string) *flag.FlagSet {
 	fset := flag.NewFlagSet(name, flag.ContinueOnError)
 	fset.StringVar(&catalogPath, "catalog", catalogPath, "path to catalog directory (overrides the "+CatalogPathEnv+" environment variable)")
+	fset.StringVar(&host, "host", host, "key for this host (overrides the "+HostEnv+" environment variable)")
 	fset.Usage = func() {
 		printUsage(fset, name, synopsis)
 	}
