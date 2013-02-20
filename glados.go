@@ -84,6 +84,7 @@ func cmdShow(args []string) {
 
 	fset := newFlagSet("show", synopsis)
 	jsonFormat := fset.Bool("json", false, "print project as JSON")
+	rfc3339Time := fset.Bool("rfc3339", false, "print dates as RFC3339")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
 		exitSynopsis(synopsis)
@@ -99,6 +100,11 @@ func cmdShow(args []string) {
 			fail(err)
 		}
 	} else {
+		fmtTime := fmtSimpleTime
+		if *rfc3339Time {
+			fmtTime = fmtRFC3339Time
+		}
+
 		fmt.Println(proj.Name)
 		showField("ID", proj.ID)
 		if info := proj.PerHost[host]; host != "" && info != nil {
@@ -108,8 +114,8 @@ func cmdShow(args []string) {
 			sort.Strings(proj.Tags)
 			showField("Tags", strings.Join(proj.Tags, ", "))
 		}
-		showField("Created", proj.CreateTime)
-		showField("Added On", proj.CatalogTime)
+		showField("Created", fmtTime(proj.CreateTime))
+		showField("Added On", fmtTime(proj.CatalogTime))
 		if proj.Homepage != "" {
 			showField("URL", proj.Homepage)
 		}
@@ -128,6 +134,14 @@ func cmdShow(args []string) {
 
 func showField(label string, args ...interface{}) {
 	fmt.Printf("%-9s %s", label+":", fmt.Sprintln(args...))
+}
+
+func fmtSimpleTime(t time.Time) string {
+	return t.Local().Format(time.Stamp)
+}
+
+func fmtRFC3339Time(t time.Time) string {
+	return t.Format(time.RFC3339)
 }
 
 const rfc3339example = "2006-01-02T15:04:05-07:00"
