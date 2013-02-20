@@ -36,6 +36,7 @@ var commands = map[string]func([]string){
 	"list":   cmdList,
 	"ls":     cmdList,
 	"mv":     cmdRename,
+	"path":   cmdPath,
 	"rename": cmdRename,
 	"rm":     cmdDelete,
 	"show":   cmdShow,
@@ -77,6 +78,30 @@ func cmdList(args []string) {
 	for _, name := range list {
 		fmt.Println(name)
 	}
+}
+
+func cmdPath(args []string) {
+	const synopsis = "path PROJECT"
+
+	fset := newFlagSet("path", synopsis)
+	parseFlags(fset, args)
+	if fset.NArg() != 1 {
+		exitSynopsis(synopsis)
+	}
+	cat := requireCatalog()
+
+	if host == "" {
+		fail(HostEnv + " not set")
+	}
+	proj, err := cat.GetProject(fset.Arg(0))
+	if err != nil {
+		fail(err)
+	}
+	info := proj.PerHost[host]
+	if info == nil || info.Path == "" {
+		os.Exit(exitFailure)
+	}
+	fmt.Println(info.Path)
 }
 
 func cmdShow(args []string) {
