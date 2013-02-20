@@ -43,9 +43,9 @@ func TestLocalCreate(t *testing.T) {
 	if cat.root != root {
 		t.Errorf("cat.root = %q; want %q", cat.root, root)
 	}
-	fileChecks := []struct{
+	fileChecks := []struct {
 		FileName string
-		Content string
+		Content  string
 	}{
 		{"version.json", `{"version":1}` + "\n"},
 		{"catalog.json", `{"id_to_shortname":{}}` + "\n"},
