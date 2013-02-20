@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // A Catalog is a database of projects.
@@ -34,6 +35,9 @@ type Project struct {
 	Description string   `json:"description,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	Homepage    string   `json:"homepage,omitempty"`
+
+	CatalogTime time.Time `json:"catalog_time"`
+	CreateTime  time.Time `json:"create_time"`
 
 	VCS     *VCSInfo             `json:"vcs,omitempty"`
 	PerHost map[string]*HostInfo `json:"per_host,omitempty"`

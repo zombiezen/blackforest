@@ -4,13 +4,18 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 )
+
+var magicTime = time.Date(2013, 2, 7, 10, 51, 13, 0, time.FixedZone("PST", int(-8*time.Hour/time.Second)))
 
 const exampleProjectJSON = `{
 	"id": "b11dzGs4SQid",
 	"shortname": "glados",
 	"name": "GLaDOS",
 	"description": "Giant Library and Distributed Organizing System",
+	"catalog_time": "2013-02-07T10:51:13-08:00",
+	"create_time": "2013-02-07T10:51:13-08:00",
 	"tags": ["go", "http", "os", "tools"]
 }` + "\n"
 
@@ -94,9 +99,11 @@ func TestLocalGetProject(t *testing.T) {
 		ShortName:   "glados",
 		Name:        "GLaDOS",
 		Description: "Giant Library and Distributed Organizing System",
+		CatalogTime: magicTime,
+		CreateTime:  magicTime,
 		Tags:        []string{"go", "http", "os", "tools"},
 	}
-	if !reflect.DeepEqual(proj, want) {
+	if !projectEqual(proj, want) {
 		t.Errorf("cat.GetProject(%q) = %v; want %v", want.ShortName, proj, want)
 	}
 	if err != nil {
@@ -116,6 +123,8 @@ func TestLocalPutProject_New(t *testing.T) {
 		Description: "A junk project",
 		Tags:        []string{"foo", "junk"},
 		Homepage:    "http://example.com/",
+		CatalogTime: magicTime,
+		CreateTime:  magicTime,
 	}
 	if err := cat.PutProject(proj); err != nil {
 		t.Error("put error:", err)
@@ -125,7 +134,7 @@ func TestLocalPutProject_New(t *testing.T) {
 		FileName string
 		Content  string
 	}{
-		{"foo.json", `{"id":"unu7bCtmYVT7","shortname":"foo","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/"}` + "\n"},
+		{"foo.json", `{"id":"unu7bCtmYVT7","shortname":"foo","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/","catalog_time":"2013-02-07T10:51:13-08:00","create_time":"2013-02-07T10:51:13-08:00"}` + "\n"},
 	}
 	for _, fc := range fileChecks {
 		name := filepath.Join(root, "projects", fc.FileName)
@@ -157,6 +166,8 @@ func TestLocalPutProject_Update(t *testing.T) {
 		Description: "A junk project",
 		Tags:        []string{"foo", "junk"},
 		Homepage:    "http://example.com/",
+		CatalogTime: magicTime,
+		CreateTime:  magicTime,
 	}
 	if err := cat.PutProject(proj); err != nil {
 		t.Error("put error:", err)
@@ -166,7 +177,7 @@ func TestLocalPutProject_Update(t *testing.T) {
 		FileName string
 		Content  string
 	}{
-		{"glados.json", `{"id":"b11dzGs4SQid","shortname":"glados","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/"}` + "\n"},
+		{"glados.json", `{"id":"b11dzGs4SQid","shortname":"glados","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/","catalog_time":"2013-02-07T10:51:13-08:00","create_time":"2013-02-07T10:51:13-08:00"}` + "\n"},
 	}
 	for _, fc := range fileChecks {
 		name := filepath.Join(root, "projects", fc.FileName)
@@ -198,6 +209,8 @@ func TestLocalPutProject_Rename(t *testing.T) {
 		Description: "A junk project",
 		Tags:        []string{"foo", "junk"},
 		Homepage:    "http://example.com/",
+		CatalogTime: magicTime,
+		CreateTime:  magicTime,
 	}
 	if err := cat.PutProject(proj); err != nil {
 		t.Error("put error:", err)
@@ -207,7 +220,7 @@ func TestLocalPutProject_Rename(t *testing.T) {
 		FileName string
 		Content  string
 	}{
-		{"foo.json", `{"id":"b11dzGs4SQid","shortname":"foo","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/"}` + "\n"},
+		{"foo.json", `{"id":"b11dzGs4SQid","shortname":"foo","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/","catalog_time":"2013-02-07T10:51:13-08:00","create_time":"2013-02-07T10:51:13-08:00"}` + "\n"},
 	}
 	for _, fc := range fileChecks {
 		name := filepath.Join(root, "projects", fc.FileName)
@@ -270,4 +283,17 @@ func TestLocalPutProject_NameConflict(t *testing.T) {
 	if err != nil {
 		t.Errorf("cat.ShortName(%v) error = %v", id, err)
 	}
+}
+
+func projectEqual(a, b *Project) bool {
+	return a.ID == b.ID &&
+		a.ShortName == b.ShortName &&
+		a.Name == b.Name &&
+		a.Description == b.Description &&
+		reflect.DeepEqual(a.Tags, b.Tags) &&
+		a.Homepage == b.Homepage &&
+		a.CatalogTime.Equal(b.CatalogTime) &&
+		a.CreateTime.Equal(b.CreateTime) &&
+		reflect.DeepEqual(a.VCS, b.VCS) &&
+		reflect.DeepEqual(a.PerHost, b.PerHost)
 }
