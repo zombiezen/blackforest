@@ -105,6 +105,16 @@ func cmdShow(args []string) {
 			}
 			fmt.Println()
 		}
+		if proj.Homepage != "" {
+			fmt.Println("URL: ", proj.Homepage)
+		}
+		if vcsInfo := proj.VCS; vcsInfo != nil {
+			if vcsInfo.URL != "" {
+				fmt.Println("VCS: ", vcsInfo.Type, vcsInfo.URL)
+			} else {
+				fmt.Println("VCS: ", vcsInfo.Type)
+			}
+		}
 		if proj.Description != "" {
 			fmt.Println("\n" + proj.Description)
 		}

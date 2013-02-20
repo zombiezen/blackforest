@@ -31,8 +31,33 @@ type Project struct {
 	ID          ID       `json:"id"`
 	ShortName   string   `json:"shortname"`
 	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Tags        []string `json:"tags"`
+	Description string   `json:"description,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Homepage    string   `json:"homepage,omitempty"`
+
+	VCS     *VCSInfo             `json:"vcs,omitempty"`
+	PerHost map[string]*HostInfo `json:"per_host,omitempty"`
+}
+
+// VCSInfo holds the version control information in a project record.
+type VCSInfo struct {
+	Type string `json:"type"`
+	URL  string `json:"url,omitempty"`
+}
+
+// VCS types (for VCSInfo)
+const (
+	CVS        = "cvs"
+	Git        = "git"
+	Bazaar     = "bzr"
+	Darcs      = "darcs"
+	Subversion = "svn"
+	Mercurial  = "hg"
+)
+
+// HostInfo holds the per-host project information.
+type HostInfo struct {
+	Path string `json:"path"`
 }
 
 // Errors
