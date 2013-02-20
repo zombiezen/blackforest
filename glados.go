@@ -8,6 +8,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -99,29 +100,24 @@ func cmdShow(args []string) {
 		}
 	} else {
 		fmt.Println(proj.Name)
-		fmt.Println("ID:  ", proj.ID)
+		showField("ID", proj.ID)
 		if info := proj.PerHost[host]; host != "" && info != nil {
-			fmt.Println("Path:", info.Path)
+			showField("Path", info.Path)
 		}
 		if len(proj.Tags) != 0 {
-			fmt.Print("Tags: ")
 			sort.Strings(proj.Tags)
-			for i, tag := range proj.Tags {
-				if i != 0 {
-					fmt.Print(", ")
-				}
-				fmt.Print(tag)
-			}
-			fmt.Println()
+			showField("Tags", strings.Join(proj.Tags, ", "))
 		}
+		showField("Created", proj.CreateTime)
+		showField("Added On", proj.CatalogTime)
 		if proj.Homepage != "" {
-			fmt.Println("URL: ", proj.Homepage)
+			showField("URL", proj.Homepage)
 		}
 		if vcsInfo := proj.VCS; vcsInfo != nil {
 			if vcsInfo.URL != "" {
-				fmt.Println("VCS: ", vcsInfo.Type, vcsInfo.URL)
+				showField("VCS", vcsInfo.Type, vcsInfo.URL)
 			} else {
-				fmt.Println("VCS: ", vcsInfo.Type)
+				showField("VCS", vcsInfo.Type)
 			}
 		}
 		if proj.Description != "" {
@@ -130,11 +126,20 @@ func cmdShow(args []string) {
 	}
 }
 
+func showField(label string, args ...interface{}) {
+	fmt.Printf("%-9s %s", label+":", fmt.Sprintln(args...))
+}
+
+const rfc3339example = "2006-01-02T15:04:05-07:00"
+
 func cmdCreate(args []string) {
 	const synopsis = "create [options] NAME"
 
+	now := time.Now()
 	proj := &catalog.Project{
-		VCS: new(catalog.VCSInfo),
+		VCS:         new(catalog.VCSInfo),
+		CatalogTime: now,
+		CreateTime:  now,
 	}
 	var hostInfo catalog.HostInfo
 
@@ -145,6 +150,7 @@ func cmdCreate(args []string) {
 	fset.StringVar(&proj.Homepage, "url", "", "project homepage")
 	fset.StringVar(&proj.VCS.Type, "vcs", "", "type of VCS for project")
 	fset.StringVar(&proj.VCS.URL, "vcsurl", "", "project VCS URL")
+	fset.Var((*timeFlag)(&proj.CreateTime), "created", "project creation date, formatted as RFC3339 ("+rfc3339example+")")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
 		exitSynopsis(synopsis)
@@ -187,6 +193,7 @@ func cmdUpdate(args []string) {
 		name     optStringFlag
 		tagsFlag optStringFlag
 		path     optStringFlag
+		created  optTimeFlag
 		homepage optStringFlag
 		vcsType  optStringFlag
 		vcsURL   optStringFlag
@@ -196,6 +203,7 @@ func cmdUpdate(args []string) {
 	fset.Var(&name, "name", "human-readable name of project")
 	fset.Var(&tagsFlag, "tags", "comma-separated tags to assign to the new project")
 	fset.Var(&path, "path", "path of working copy")
+	fset.Var(&created, "created", "project creation date, formatted as RFC3339 ("+rfc3339example+")")
 	fset.Var(&homepage, "url", "project homepage")
 	fset.Var(&vcsType, "vcs", "type of VCS for project")
 	fset.Var(&vcsURL, "vcsurl", "project VCS URL")
@@ -213,6 +221,9 @@ func cmdUpdate(args []string) {
 
 	updateString(&proj.Name, &name)
 	updateString(&proj.Homepage, &homepage)
+	if created.present {
+		proj.CreateTime = time.Time(created.t)
+	}
 	if vcsType.present {
 		vt := vcsType.s
 		switch {

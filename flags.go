@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // environment variable names
@@ -82,6 +83,35 @@ func (f *optStringFlag) Set(val string) error {
 	f.s = val
 	f.present = true
 	return nil
+}
+
+type timeFlag time.Time
+
+func (t *timeFlag) String() string {
+	return (*time.Time)(t).Format(time.RFC3339)
+}
+
+func (t *timeFlag) Set(s string) error {
+	tt, err := time.Parse(time.RFC3339, s)
+	*t = timeFlag(tt)
+	return err
+}
+
+type optTimeFlag struct {
+	t       timeFlag
+	present bool
+}
+
+func (f *optTimeFlag) String() string {
+	if !f.present || time.Time(f.t).IsZero() {
+		return ""
+	}
+	return f.t.String()
+}
+
+func (f *optTimeFlag) Set(s string) error {
+	f.present = true
+	return f.t.Set(s)
 }
 
 type tagsList []string
