@@ -6,6 +6,14 @@ import (
 	"testing"
 )
 
+const exampleProjectJSON = `{
+	"id": "b11dzGs4SQid",
+	"shortname": "glados",
+	"name": "GLaDOS",
+	"description": "Giant Library and Distributed Organizing System",
+	"tags": ["go", "http", "os", "tools"]
+}` + "\n"
+
 func newTestCatalog() (*localCatalog, *mockFilesystem) {
 	const sep = string(filepath.Separator)
 
@@ -19,15 +27,7 @@ func newTestCatalog() (*localCatalog, *mockFilesystem) {
 }`)
 
 	fs.Mkdir("foo" + sep + "projects")
-	fs.makeFile(
-		"foo"+sep+"projects"+sep+"glados.json",
-		`{
-	"id": "b11dzGs4SQid",
-	"shortname": "glados",
-	"name": "GLaDOS",
-	"description": "Giant Library and Distributed Organizing System",
-	"tags": ["go", "http", "os", "tools"]
-}`)
+	fs.makeFile("foo"+sep+"projects"+sep+"glados.json", exampleProjectJSON)
 
 	return &localCatalog{root: "foo", fs: fs}, fs
 }
@@ -76,12 +76,13 @@ func TestLocalList(t *testing.T) {
 
 func TestLocalShortName(t *testing.T) {
 	cat, _ := newTestCatalog()
-	sn, err := cat.ShortName(ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d})
+	id := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
+	sn, err := cat.ShortName(id)
 	if want := "glados"; sn != want {
-		t.Errorf("cat.ShortName() = %q; want %q", sn, want)
+		t.Errorf("cat.ShortName(%v) = %q; want %q", id, sn, want)
 	}
 	if err != nil {
-		t.Errorf("cat.ShortName() error = %v", err)
+		t.Errorf("cat.ShortName(%v) error = %v", id, err)
 	}
 }
 
@@ -100,5 +101,173 @@ func TestLocalGetProject(t *testing.T) {
 	}
 	if err != nil {
 		t.Errorf("cat.GetProject(%q) error = %v", want.ShortName, err)
+	}
+}
+
+func TestLocalPutProject_New(t *testing.T) {
+	const root = "foo"
+
+	id := ID{0xba, 0x7b, 0xbb, 0x6c, 0x2b, 0x66, 0x61, 0x54, 0xfb}
+	cat, fs := newTestCatalog()
+	proj := &Project{
+		ID:          id,
+		ShortName:   "foo",
+		Name:        "Teh Foo",
+		Description: "A junk project",
+		Tags:        []string{"foo", "junk"},
+		Homepage:    "http://example.com/",
+	}
+	if err := cat.PutProject(proj); err != nil {
+		t.Error("put error:", err)
+	}
+
+	fileChecks := []struct {
+		FileName string
+		Content  string
+	}{
+		{"foo.json", `{"id":"unu7bCtmYVT7","shortname":"foo","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/"}` + "\n"},
+	}
+	for _, fc := range fileChecks {
+		name := filepath.Join(root, "projects", fc.FileName)
+		if data, ok := fs.files[name]; ok && string(data) != fc.Content {
+			t.Errorf("%v contents = %q; want %q", name, string(data), fc.Content)
+		} else if !ok {
+			t.Errorf("%q does not exist!", name)
+		}
+	}
+
+	sn, err := cat.ShortName(id)
+	if want := "foo"; sn != want {
+		t.Errorf("cat.ShortName(%v) = %q; want %q", id, sn, want)
+	}
+	if err != nil {
+		t.Errorf("cat.ShortName(%v) error = %v", id, err)
+	}
+}
+
+func TestLocalPutProject_Update(t *testing.T) {
+	const root = "foo"
+
+	id := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
+	cat, fs := newTestCatalog()
+	proj := &Project{
+		ID:          id,
+		ShortName:   "glados",
+		Name:        "Teh Foo",
+		Description: "A junk project",
+		Tags:        []string{"foo", "junk"},
+		Homepage:    "http://example.com/",
+	}
+	if err := cat.PutProject(proj); err != nil {
+		t.Error("put error:", err)
+	}
+
+	fileChecks := []struct {
+		FileName string
+		Content  string
+	}{
+		{"glados.json", `{"id":"b11dzGs4SQid","shortname":"glados","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/"}` + "\n"},
+	}
+	for _, fc := range fileChecks {
+		name := filepath.Join(root, "projects", fc.FileName)
+		if data, ok := fs.files[name]; ok && string(data) != fc.Content {
+			t.Errorf("%v contents = %q; want %q", name, string(data), fc.Content)
+		} else if !ok {
+			t.Errorf("%q does not exist!", name)
+		}
+	}
+
+	sn, err := cat.ShortName(id)
+	if want := "glados"; sn != want {
+		t.Errorf("cat.ShortName(%v) = %q; want %q", id, sn, want)
+	}
+	if err != nil {
+		t.Errorf("cat.ShortName(%v) error = %v", id, err)
+	}
+}
+
+func TestLocalPutProject_Rename(t *testing.T) {
+	const root = "foo"
+
+	id := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
+	cat, fs := newTestCatalog()
+	proj := &Project{
+		ID:          id,
+		ShortName:   "foo",
+		Name:        "Teh Foo",
+		Description: "A junk project",
+		Tags:        []string{"foo", "junk"},
+		Homepage:    "http://example.com/",
+	}
+	if err := cat.PutProject(proj); err != nil {
+		t.Error("put error:", err)
+	}
+
+	fileChecks := []struct {
+		FileName string
+		Content  string
+	}{
+		{"foo.json", `{"id":"b11dzGs4SQid","shortname":"foo","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/"}` + "\n"},
+	}
+	for _, fc := range fileChecks {
+		name := filepath.Join(root, "projects", fc.FileName)
+		if data, ok := fs.files[name]; ok && string(data) != fc.Content {
+			t.Errorf("%v contents = %q; want %q", name, string(data), fc.Content)
+		} else if !ok {
+			t.Errorf("%q does not exist!", name)
+		}
+	}
+
+	if _, ok := fs.files[filepath.Join(root, "projects", "glados.json")]; ok {
+		t.Error("glados.json still exists")
+	}
+
+	sn, err := cat.ShortName(id)
+	if want := "foo"; sn != want {
+		t.Errorf("cat.ShortName(%v) = %q; want %q", id, sn, want)
+	}
+	if err != nil {
+		t.Errorf("cat.ShortName(%v) error = %v", id, err)
+	}
+}
+
+func TestLocalPutProject_NameConflict(t *testing.T) {
+	const root = "foo"
+
+	id := ID{0x6f, 0x5d, 0x5d, 0xdd, 0x6b, 0x38, 0x49, 0x08, 0x9d}
+	cat, fs := newTestCatalog()
+	proj := &Project{
+		ID:          id,
+		ShortName:   "glados",
+		Name:        "Teh Foo",
+		Description: "A junk project",
+		Tags:        []string{"foo", "junk"},
+		Homepage:    "http://example.com/",
+	}
+	if err := cat.PutProject(proj); err == nil {
+		t.Error("expected put error, got nil")
+	}
+
+	fileChecks := []struct {
+		FileName string
+		Content  string
+	}{
+		{"glados.json", exampleProjectJSON},
+	}
+	for _, fc := range fileChecks {
+		name := filepath.Join(root, "projects", fc.FileName)
+		if data, ok := fs.files[name]; ok && string(data) != fc.Content {
+			t.Errorf("%v contents = %q; want %q", name, string(data), fc.Content)
+		} else if !ok {
+			t.Errorf("%q does not exist!", name)
+		}
+	}
+
+	sn, err := cat.ShortName(ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d})
+	if want := "glados"; sn != want {
+		t.Errorf("cat.ShortName(%v) = %q; want %q", id, sn, want)
+	}
+	if err != nil {
+		t.Errorf("cat.ShortName(%v) error = %v", id, err)
 	}
 }
