@@ -4,7 +4,6 @@ package main
 import (
 	"bitbucket.org/zombiezen/glados/catalog"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"sort"
@@ -29,14 +28,16 @@ func main() {
 }
 
 var commands = map[string]func([]string){
+	"create": cmdCreate,
+	"del":    cmdDelete,
+	"delete": cmdDelete,
 	"init":   cmdInit,
 	"list":   cmdList,
 	"ls":     cmdList,
-	"show":   cmdShow,
-	"create": cmdCreate,
-	"delete": cmdDelete,
-	"del":    cmdDelete,
 	"rm":     cmdDelete,
+	"show":   cmdShow,
+	"up":     cmdUpdate,
+	"update": cmdUpdate,
 }
 
 func cmdInit(args []string) {
@@ -164,8 +165,7 @@ func cmdCreate(args []string) {
 	if proj.VCS.Type == "" {
 		proj.VCS = nil
 	} else if !isValidVCSType(proj.VCS.Type) {
-		// TODO(light): make this a dynamic list
-		failf("%q is not a valid -vcs\nvalid choices are: cvs, svn, hg, git, bzr, darcs\n", proj.VCS.Type)
+		failf("%q is not a valid -vcs\nvalid choices are: %s\n", proj.VCS.Type, validVCSText)
 	}
 	if hostInfo.Path != "" {
 		if host == "" {
@@ -178,8 +178,85 @@ func cmdCreate(args []string) {
 	}
 }
 
+func cmdUpdate(args []string) {
+	const synopsis = "update [options] PROJECT"
+
+	var (
+		name     optStringFlag
+		tagsFlag optStringFlag
+		path     optStringFlag
+		homepage optStringFlag
+		vcsType  optStringFlag
+		vcsURL   optStringFlag
+	)
+
+	fset := newFlagSet("update", synopsis)
+	fset.Var(&name, "name", "human-readable name of project")
+	fset.Var(&tagsFlag, "tags", "comma-separated tags to assign to the new project")
+	fset.Var(&path, "path", "path of working copy")
+	fset.Var(&homepage, "url", "project homepage")
+	fset.Var(&vcsType, "vcs", "type of VCS for project")
+	fset.Var(&vcsURL, "vcsurl", "project VCS URL")
+	parseFlags(fset, args)
+	if fset.NArg() != 1 {
+		exitSynopsis(synopsis)
+	}
+	cat := requireCatalog()
+
+	shortName := fset.Arg(0)
+	proj, err := cat.GetProject(shortName)
+	if err != nil {
+		fail(err)
+	}
+
+	updateString(&proj.Name, &name)
+	updateString(&proj.Homepage, &homepage)
+	if vcsType.present {
+		vt := vcsType.s
+		switch {
+		case vt == "":
+			proj.VCS = nil
+		case isValidVCSType(vt):
+			if proj.VCS == nil {
+				proj.VCS = new(catalog.VCSInfo)
+			}
+			proj.VCS.Type = vt
+		default:
+			failf("%q is not a valid -vcs\nvalid choices are: %s\n", vt, validVCSText)
+		}
+	}
+	if vcsURL.present {
+		if proj.VCS == nil {
+			fail("-vcsurl given, but project has no VCS")
+		}
+		proj.VCS.URL = vcsURL.s
+	}
+	if path.present {
+		if host == "" {
+			fail("-path given, but " + HostEnv + " not set")
+		}
+		if proj.PerHost == nil {
+			proj.PerHost = make(map[string]*catalog.HostInfo)
+		}
+		if proj.PerHost[host] == nil {
+			proj.PerHost[host] = new(catalog.HostInfo)
+		}
+		proj.PerHost[host].Path = path.s
+	}
+
+	if err := cat.PutProject(proj); err != nil {
+		fail(err)
+	}
+}
+
+func updateString(s *string, f *optStringFlag) {
+	if f.present {
+		*s = f.s
+	}
+}
+
 func cmdDelete(args []string) {
-	const synopsis = "delete NAME [...]"
+	const synopsis = "delete PROJECT [...]"
 
 	fset := newFlagSet("delete", synopsis)
 	parseFlags(fset, args)
@@ -200,107 +277,6 @@ func cmdDelete(args []string) {
 	}
 }
 
-func isValidVCSType(t string) bool {
-	return t == catalog.CVS || t == catalog.Subversion || t == catalog.Mercurial || t == catalog.Git || t == catalog.Bazaar || t == catalog.Darcs
-}
-
-type tagsList []string
-
-func (tl tagsList) String() string {
-	return strings.Join([]string(tl), ",")
-}
-
-func (tl *tagsList) Set(val string) error {
-	tags := strings.Split(val, ",")
-	for i := range tags {
-		tags[i] = strings.TrimSpace(tags[i])
-	}
-	for i := 0; i < len(tags); {
-		if tags[i] == "" {
-			tags = append(tags[:i], tags[i+1:]...)
-		} else {
-			i++
-		}
-	}
-	*tl = tags
-	return nil
-}
-
-func sanitizeName(name string) string {
-	sn := make([]rune, 0, len(name))
-	for _, r := range name {
-		switch {
-		case r >= 'a' && r <= 'z' || r == '-' || r == '_':
-			sn = append(sn, r)
-		case r >= 'A' && r <= 'Z':
-			sn = append(sn, r-'A'+'a')
-		case r == ' ':
-			sn = append(sn, '-')
-		default:
-			sn = append(sn, '_')
-		}
-	}
-	return string(sn)
-}
-
-const (
-	CatalogPathEnv = "GLADOS_PATH"
-	HostEnv        = "GLADOS_HOST"
-)
-
-// global flags
-var (
-	catalogPath string
-	host        string
-)
-
-func init() {
-	catalogPath = os.Getenv(CatalogPathEnv)
-	host = os.Getenv(HostEnv)
-}
-
-func newFlagSet(name string, synopsis string) *flag.FlagSet {
-	fset := flag.NewFlagSet(name, flag.ContinueOnError)
-	fset.StringVar(&catalogPath, "catalog", catalogPath, "path to catalog directory (overrides the "+CatalogPathEnv+" environment variable)")
-	fset.StringVar(&host, "host", host, "key for this host (overrides the "+HostEnv+" environment variable)")
-	fset.Usage = func() {
-		printUsage(fset, name, synopsis)
-	}
-	fset.SetOutput(os.Stdout)
-	return fset
-}
-
-func printUsage(fset *flag.FlagSet, name string, synopsis string) {
-	fmt.Printf("Usage of %s:\n", name)
-	if synopsis != "" {
-		fmt.Printf("  %s\n\n", synopsis)
-	}
-	fset.PrintDefaults()
-}
-
-func exitSynopsis(synopsis string) {
-	fmt.Fprintln(os.Stderr, "usage: glados", synopsis)
-	os.Exit(exitUsage)
-}
-
-func fail(args ...interface{}) {
-	fmt.Fprintln(os.Stderr, args...)
-	os.Exit(exitFailure)
-}
-
-func failf(f string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, f, args...)
-	os.Exit(exitFailure)
-}
-
-func parseFlags(fset *flag.FlagSet, args []string) {
-	if err := fset.Parse(args); err == flag.ErrHelp {
-		os.Exit(exitSuccess)
-	} else if err != nil {
-		os.Exit(exitUsage)
-	}
-}
-
 func requireCatalog() catalog.Catalog {
 	if catalogPath == "" {
 		fail(CatalogPathEnv + " not set")
@@ -311,10 +287,3 @@ func requireCatalog() catalog.Catalog {
 	}
 	return cat
 }
-
-// exit codes
-const (
-	exitSuccess = 0
-	exitFailure = 1
-	exitUsage   = 2
-)
