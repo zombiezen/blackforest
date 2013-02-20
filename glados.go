@@ -46,7 +46,7 @@ func cmdInit(args []string) {
 	}
 
 	if catalogPath == "" {
-		fail("GLADOS_PATH not set")
+		fail(CatalogPathEnv + " not set")
 	}
 	if _, err := catalog.Create(catalogPath); err != nil {
 		fail(err)
@@ -178,18 +178,20 @@ func sanitizeName(name string) string {
 	return string(sn)
 }
 
+const CatalogPathEnv = "GLADOS_PATH"
+
 // global flags
 var (
 	catalogPath string
 )
 
 func init() {
-	catalogPath = os.Getenv("GLADOS_PATH")
+	catalogPath = os.Getenv(CatalogPathEnv)
 }
 
 func newFlagSet(name string, synopsis string) *flag.FlagSet {
 	fset := flag.NewFlagSet(name, flag.ContinueOnError)
-	fset.StringVar(&catalogPath, "catalog", catalogPath, "path to catalog directory")
+	fset.StringVar(&catalogPath, "catalog", catalogPath, "path to catalog directory (overrides the "+CatalogPathEnv+" environment variable)")
 	fset.Usage = func() {
 		printUsage(fset, name, synopsis)
 	}
@@ -230,7 +232,7 @@ func parseFlags(fset *flag.FlagSet, args []string) {
 
 func requireCatalog() catalog.Catalog {
 	if catalogPath == "" {
-		fail("GLADOS_PATH not set")
+		fail(CatalogPathEnv + " not set")
 	}
 	cat, err := catalog.Open(catalogPath)
 	if err != nil {
