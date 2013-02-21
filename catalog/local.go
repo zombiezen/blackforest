@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"bitbucket.org/zombiezen/glados/vcs"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 type localCatalog struct {
 	root string
 	fs   filesystem
+	vcs  vcs.VCS
 }
 
 // Create creates a new catalog at the given directory.

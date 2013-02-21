@@ -68,6 +68,24 @@ func (hg *Mercurial) WorkingCopy(path string) (WorkingCopy, error) {
 	return &mercurialWC{hg: hg, path: path}, nil
 }
 
+func (hg *Mercurial) Checkout(path, url string) (WorkingCopy, error) {
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := hg.checkout(path, url); err != nil {
+		return nil, err
+	}
+	return &mercurialWC{hg: hg, path: path}, nil
+}
+
+func (hg *Mercurial) checkout(path, url string) error {
+	if err := hg.cmd("clone", "--", url, path).Run(); err != nil {
+		return &mercurialError{Op: "clone", Path: path, Err: err}
+	}
+	return nil
+}
+
 type mercurialWC struct {
 	hg   *Mercurial
 	path string

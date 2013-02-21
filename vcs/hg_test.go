@@ -16,6 +16,26 @@ func newIsolatedMercurialWC(path string, c mockCommander) *mercurialWC {
 	}
 }
 
+func TestMercurialCheckout(t *testing.T) {
+	const (
+		wcPath   = "baz"
+		cloneURL = "http://example.com/foo/bar"
+	)
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBufferString(""),
+			ExpectArgs: []string{"hg", "clone", "--", cloneURL, wcPath},
+		},
+	}
+	c := mc
+	hg := &Mercurial{Program: "hg", commander: &c}
+	err := hg.checkout(wcPath, cloneURL)
+	mc.check(t)
+	if err != nil {
+		t.Error("hg.checkout(%q, %q) error:", wcPath, cloneURL, err)
+	}
+}
+
 func TestMercurialCurrent(t *testing.T) {
 	mc := mockCommander{
 		{
