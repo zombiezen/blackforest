@@ -84,6 +84,7 @@ func cmdList(cmd *subcmd, args []string) {
 	if err != nil {
 		fail(err)
 	}
+	sort.Strings(list)
 	for _, name := range list {
 		fmt.Println(name)
 	}
