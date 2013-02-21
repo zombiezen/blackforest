@@ -64,6 +64,62 @@ type HostInfo struct {
 	Path string `json:"path"`
 }
 
+// TagSet is a set of tags (strings).
+type TagSet []string
+
+// Find searches for the first occurrence of a tag in the set, or -1 if the tag is not found.
+func (ts TagSet) Find(tag string) int {
+	for i := range ts {
+		if ts[i] == tag {
+			return i
+		}
+	}
+	return -1
+}
+
+// Has returns whether ts contains tag.
+func (ts TagSet) Has(tag string) bool {
+	return ts.Find(tag) != -1
+}
+
+// Unique removes all duplicate tags in the set.
+func (ts *TagSet) Unique() {
+	seen := make(map[string]struct{})
+	for i := 0; i < len(*ts); {
+		t := (*ts)[i]
+		if _, found := seen[t]; found {
+			*ts = append((*ts)[:i], (*ts)[i+1:]...)
+		} else {
+			seen[t] = struct{}{}
+			i++
+		}
+	}
+}
+
+// Add appends a tag to the set if it is not present in the set already.
+// This function returns true if the tag was added.
+func (ts *TagSet) Add(tag string) (ok bool) {
+	if ts.Has(tag) {
+		return false
+	}
+	*ts = append(*ts, tag)
+	return true
+}
+
+// Remove deletes all occurrences of tag in the set.
+// This function returns true if the tag was found in the set.
+func (ts *TagSet) Remove(tag string) (ok bool) {
+	for i := 0; i < len(*ts); {
+		if (*ts)[i] == tag {
+			*ts = append((*ts)[:i], (*ts)[i+1:]...)
+			ok = true
+		} else {
+			i++
+		}
+	}
+	return
+}
+
 // Errors
 var (
 	ErrLocked = errors.New("catalog is locked")
