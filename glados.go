@@ -4,6 +4,7 @@ package main
 import (
 	"bitbucket.org/zombiezen/glados/catalog"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"sort"
@@ -12,45 +13,55 @@ import (
 )
 
 func main() {
-	fset := newFlagSet("glados", "glados [options] COMMAND ...")
+	fset := flag.NewFlagSet("glados", flag.ContinueOnError)
+	fset.SetOutput(os.Stdout)
+	fset.Usage = func() {
+		fmt.Println("glados [options] COMMAND ...")
+		fmt.Println()
+		fmt.Println("commands:")
+		for i := range commands {
+			cmd := &commands[i]
+			// TODO(light): only one line of description
+			fmt.Printf("  %-8s %s\n", cmd.Name, cmd.Description)
+		}
+		fmt.Println()
+		fmt.Println("options:")
+		fset.PrintDefaults()
+	}
+	globalFlags(fset)
 	parseFlags(fset, os.Args[1:])
 	if fset.NArg() == 0 {
 		fset.Usage()
 		os.Exit(exitUsage)
 	}
 	cname := fset.Arg(0)
-	if c := commands[cname]; c != nil {
-		c(fset.Args()[1:])
-		os.Exit(exitSuccess)
-	} else {
-		fmt.Fprintln(os.Stderr, "unrecognized command:", cname)
-		os.Exit(exitUsage)
+	for i := range commands {
+		cmd := &commands[i]
+		if cmd.Matches(cname) {
+			cmd.Func(cmd, fset.Args()[1:])
+			os.Exit(exitSuccess)
+		}
 	}
+	fmt.Fprintln(os.Stderr, "unrecognized command:", cname)
+	os.Exit(exitUsage)
 }
 
-var commands = map[string]func([]string){
-	"create": cmdCreate,
-	"del":    cmdDelete,
-	"delete": cmdDelete,
-	"init":   cmdInit,
-	"list":   cmdList,
-	"ls":     cmdList,
-	"mv":     cmdRename,
-	"path":   cmdPath,
-	"rename": cmdRename,
-	"rm":     cmdDelete,
-	"show":   cmdShow,
-	"up":     cmdUpdate,
-	"update": cmdUpdate,
+var commands = []subcmd{
+	{cmdInit, "init", []string{}, "init -catalog=PATH", "create a catalog"},
+	{cmdList, "list", []string{"ls"}, "list", "list project short names"},
+	{cmdPath, "path", []string{}, "path PROJECT", "print a project's local path"},
+	{cmdShow, "show", []string{}, "show PROJECT [...]", "print projects"},
+	{cmdCreate, "create", []string{}, "create [options] NAME", "create a project"},
+	{cmdUpdate, "update", []string{"up"}, "update [options] PROJECT", "change project fields"},
+	{cmdRename, "rename", []string{"mv"}, "rename SRC DST", "change a project's short name"},
+	{cmdDelete, "delete", []string{"del", "rm"}, "delete PROJECT [...]", "delete projects"},
 }
 
-func cmdInit(args []string) {
-	const synopsis = "init -catalog=PATH"
-
-	fset := newFlagSet("init", synopsis)
+func cmdInit(cmd *subcmd, args []string) {
+	fset := cmd.NewFlagSet()
 	parseFlags(fset, args)
 	if fset.NArg() != 0 {
-		exitSynopsis(synopsis)
+		cmd.ExitSynopsis()
 	}
 
 	if catalogPath == "" {
@@ -61,14 +72,12 @@ func cmdInit(args []string) {
 	}
 }
 
-func cmdList(args []string) {
-	const synopsis = "list"
-
-	fset := newFlagSet("list", synopsis)
+func cmdList(cmd *subcmd, args []string) {
+	fset := cmd.NewFlagSet()
 	parseFlags(fset, args)
 	cat := requireCatalog()
 	if fset.NArg() != 0 {
-		exitSynopsis(synopsis)
+		cmd.ExitSynopsis()
 	}
 
 	list, err := cat.List()
@@ -80,13 +89,11 @@ func cmdList(args []string) {
 	}
 }
 
-func cmdPath(args []string) {
-	const synopsis = "path PROJECT"
-
-	fset := newFlagSet("path", synopsis)
+func cmdPath(cmd *subcmd, args []string) {
+	fset := cmd.NewFlagSet()
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
-		exitSynopsis(synopsis)
+		cmd.ExitSynopsis()
 	}
 	cat := requireCatalog()
 
@@ -104,15 +111,13 @@ func cmdPath(args []string) {
 	fmt.Println(info.Path)
 }
 
-func cmdShow(args []string) {
-	const synopsis = "show PROJECT [...]"
-
-	fset := newFlagSet("show", synopsis)
+func cmdShow(cmd *subcmd, args []string) {
+	fset := cmd.NewFlagSet()
 	jsonFormat := fset.Bool("json", false, "print project as JSON")
 	rfc3339Time := fset.Bool("rfc3339", false, "print dates as RFC3339")
 	parseFlags(fset, args)
 	if fset.NArg() == 0 {
-		exitSynopsis(synopsis)
+		cmd.ExitSynopsis()
 	}
 	cat := requireCatalog()
 
@@ -192,9 +197,7 @@ func fmtRFC3339Time(t time.Time) string {
 
 const rfc3339example = "2006-01-02T15:04:05-07:00"
 
-func cmdCreate(args []string) {
-	const synopsis = "create [options] NAME"
-
+func cmdCreate(cmd *subcmd, args []string) {
 	now := time.Now()
 	proj := &catalog.Project{
 		VCS:         new(catalog.VCSInfo),
@@ -203,7 +206,7 @@ func cmdCreate(args []string) {
 	}
 	var hostInfo catalog.HostInfo
 
-	fset := newFlagSet("create", synopsis)
+	fset := cmd.NewFlagSet()
 	fset.StringVar(&proj.ShortName, "shortname", "", "identifier for project (default is lowercased full name)")
 	fset.Var((*tagsList)(&proj.Tags), "tags", "comma-separated tags to assign to the new project")
 	fset.StringVar(&hostInfo.Path, "path", "", "path of working copy")
@@ -213,7 +216,7 @@ func cmdCreate(args []string) {
 	fset.Var((*timeFlag)(&proj.CreateTime), "created", "project creation date, formatted as RFC3339 ("+rfc3339example+")")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
-		exitSynopsis(synopsis)
+		cmd.ExitSynopsis()
 	}
 	cat := requireCatalog()
 
@@ -246,9 +249,7 @@ func cmdCreate(args []string) {
 	}
 }
 
-func cmdUpdate(args []string) {
-	const synopsis = "update [options] PROJECT"
-
+func cmdUpdate(cmd *subcmd, args []string) {
 	var (
 		name     optStringFlag
 		tagsFlag optStringFlag
@@ -259,7 +260,7 @@ func cmdUpdate(args []string) {
 		vcsURL   optStringFlag
 	)
 
-	fset := newFlagSet("update", synopsis)
+	fset := cmd.NewFlagSet()
 	fset.Var(&name, "name", "human-readable name of project")
 	fset.Var(&tagsFlag, "tags", "comma-separated tags to assign to the new project")
 	fset.Var(&path, "path", "path of working copy")
@@ -269,7 +270,7 @@ func cmdUpdate(args []string) {
 	fset.Var(&vcsURL, "vcsurl", "project VCS URL")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
-		exitSynopsis(synopsis)
+		cmd.ExitSynopsis()
 	}
 	cat := requireCatalog()
 
@@ -328,13 +329,11 @@ func updateString(s *string, f *optStringFlag) {
 	}
 }
 
-func cmdRename(args []string) {
-	const synopsis = "rename SRC DST"
-
-	fset := newFlagSet("rename", synopsis)
+func cmdRename(cmd *subcmd, args []string) {
+	fset := cmd.NewFlagSet()
 	parseFlags(fset, args)
 	if fset.NArg() != 2 {
-		exitSynopsis(synopsis)
+		cmd.ExitSynopsis()
 	}
 	cat := requireCatalog()
 
@@ -349,13 +348,11 @@ func cmdRename(args []string) {
 	}
 }
 
-func cmdDelete(args []string) {
-	const synopsis = "delete PROJECT [...]"
-
-	fset := newFlagSet("delete", synopsis)
+func cmdDelete(cmd *subcmd, args []string) {
+	fset := cmd.NewFlagSet()
 	parseFlags(fset, args)
 	if fset.NArg() == 0 {
-		exitSynopsis(synopsis)
+		cmd.ExitSynopsis()
 	}
 	cat := requireCatalog()
 
