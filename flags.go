@@ -199,7 +199,7 @@ func sanitizeName(name string) string {
 	sn := make([]rune, 0, len(name))
 	for _, r := range name {
 		switch {
-		case r >= 'a' && r <= 'z' || r == '-' || r == '_':
+		case r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' || r == '_':
 			sn = append(sn, r)
 		case r >= 'A' && r <= 'Z':
 			sn = append(sn, r-'A'+'a')
