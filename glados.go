@@ -188,7 +188,8 @@ func showField(label string, args ...interface{}) {
 }
 
 func fmtSimpleTime(t time.Time) string {
-	return t.Local().Format(time.Stamp)
+	const layout = "Jan 2 2006 3:04PM"
+	return t.Local().Format(layout)
 }
 
 func fmtRFC3339Time(t time.Time) string {
