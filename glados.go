@@ -2,7 +2,6 @@
 package main
 
 import (
-	"bitbucket.org/zombiezen/glados/catalog"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,6 +9,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"bitbucket.org/zombiezen/glados/catalog"
+	"bitbucket.org/zombiezen/glados/vcs"
 )
 
 func main() {
@@ -400,7 +402,17 @@ func requireCatalog() catalog.Catalog {
 	if catalogPath == "" {
 		fail(CatalogPathEnv + " not set")
 	}
-	cat, err := catalog.Open(catalogPath, nil)
+
+	// TODO(light): check for other VCSs
+	var v vcs.VCS = new(vcs.Mercurial)
+	if ok, err := v.IsWorkingCopy(catalogPath); !ok || err != nil {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "catalog VCS warning:", err)
+		}
+		v = nil
+	}
+
+	cat, err := catalog.Open(catalogPath, v)
 	if err != nil {
 		fail(err)
 	}
