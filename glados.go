@@ -226,6 +226,7 @@ func cmdCreate(cmd *subcmd, args []string) {
 		fail("empty name")
 	}
 	proj.Name = name
+	proj.Tags.Unique()
 	id, err := catalog.GenerateID()
 	if err != nil {
 		fail(err)
@@ -330,6 +331,7 @@ func cmdUpdate(cmd *subcmd, args []string) {
 
 	if tagsFlag.present {
 		proj.Tags = catalog.TagSet(tagsFlag.ts)
+		proj.Tags.Unique()
 	} else {
 		if addTagsFlag.present {
 			for _, tag := range addTagsFlag.ts {
