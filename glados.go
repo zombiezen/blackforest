@@ -196,7 +196,7 @@ func cmdUpdate(args []string) {
 
 	fset := newFlagSet("update", synopsis)
 	fset.Var(&name, "name", "human-readable name of project")
-	fset.Var(&tagsFlag, "tags", "comma-separated tags to assign to the project. This removes any previous flags")
+	fset.Var(&tagsFlag, "tags", "comma-separated tags to assign to the project. This removes any previous flags. Cannot be used with addtags or deltags")
 	fset.Var(&addTagsFlag, "addtags", "comma-separated tags to add to the project. This retains any previous flags")
 	fset.Var(&delTagsFlag, "deltags", "comma-separated tags to remove from the project. This retains any unmentioned previous flags")
 	fset.Var(&path, "path", "path of working copy")
@@ -204,9 +204,16 @@ func cmdUpdate(args []string) {
 	fset.Var(&vcsType, "vcs", "type of VCS for project")
 	fset.Var(&vcsURL, "vcsurl", "project VCS URL")
 	parseFlags(fset, args)
+
 	if fset.NArg() != 1 {
 		exitSynopsis(synopsis)
 	}
+
+	// for tag operations, make sure that if setting, then not adding or deleting
+	if tagsFlag.present && (addTagsFlag.present || delTagsFlag.present) {
+		fail("Cannot set tags with -addtags or -deltags")
+	}
+
 	cat := requireCatalog()
 
 	shortName := fset.Arg(0)
