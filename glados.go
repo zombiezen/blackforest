@@ -208,7 +208,7 @@ func cmdCreate(cmd *subcmd, args []string) {
 
 	fset := cmd.NewFlagSet()
 	fset.StringVar(&proj.ShortName, "shortname", "", "identifier for project (default is lowercased full name)")
-	fset.Var((*tagsList)(&proj.Tags), "tags", "comma-separated tags to assign to the new project")
+	fset.Var((*tagSetFlag)(&proj.Tags), "tags", "comma-separated tags to assign to the new project")
 	fset.StringVar(&hostInfo.Path, "path", "", "path of working copy")
 	fset.StringVar(&proj.Homepage, "url", "", "project homepage")
 	fset.StringVar(&proj.VCS.Type, "vcs", "", "type of VCS for project")
@@ -252,9 +252,9 @@ func cmdCreate(cmd *subcmd, args []string) {
 func cmdUpdate(cmd *subcmd, args []string) {
 	var (
 		name        optStringFlag
-		tagsFlag    optStringFlag
-		addTagsFlag optStringFlag
-		delTagsFlag optStringFlag
+		tagsFlag    optTagSetFlag
+		addTagsFlag optTagSetFlag
+		delTagsFlag optTagSetFlag
 		path        optStringFlag
 		created     optTimeFlag
 		homepage    optStringFlag
@@ -264,9 +264,9 @@ func cmdUpdate(cmd *subcmd, args []string) {
 
 	fset := cmd.NewFlagSet()
 	fset.Var(&name, "name", "human-readable name of project")
-	fset.Var(&tagsFlag, "tags", "comma-separated tags to assign to the project. This removes any previous flags. Cannot be used with addtags or deltags")
-	fset.Var(&addTagsFlag, "addtags", "comma-separated tags to add to the project. This retains any previous flags")
-	fset.Var(&delTagsFlag, "deltags", "comma-separated tags to remove from the project. This retains any unmentioned previous flags")
+	fset.Var(&tagsFlag, "tags", "set the project's tags, separated by commas. Can't be used with -addtags or -deltags.")
+	fset.Var(&addTagsFlag, "addtags", "add tags to the project, separated by commas. Can't be used with -tags.")
+	fset.Var(&delTagsFlag, "deltags", "delete tags from the project, separated by commas. Can't be used with -tags.")
 	fset.Var(&path, "path", "path of working copy")
 	fset.Var(&created, "created", "project creation date, formatted as RFC3339 ("+rfc3339example+")")
 	fset.Var(&homepage, "url", "project homepage")
@@ -276,12 +276,11 @@ func cmdUpdate(cmd *subcmd, args []string) {
 	if fset.NArg() != 1 {
 		cmd.ExitSynopsis()
 	}
-
-	// for tag operations, make sure that if setting, then not adding or deleting
 	if tagsFlag.present && (addTagsFlag.present || delTagsFlag.present) {
-		fail("Cannot use -tags flag with -addtags or -deltags")
+		// -tags and -addtags/-deltags are mutally exclusive
+		fmt.Fprintln(os.Stderr, "cannot use -tags flag with -addtags or -deltags")
+		os.Exit(exitUsage)
 	}
-
 	cat := requireCatalog()
 
 	shortName := fset.Arg(0)
@@ -329,60 +328,23 @@ func cmdUpdate(cmd *subcmd, args []string) {
 	}
 
 	if tagsFlag.present {
-		// set the tags to what the flag had
-		tags := strings.Split(tagsFlag.String(), ",")
-
-		// if there's nothing actually there, remove the empty tag
-		if len(tags) == 1 && tags[0] == "" {
-			tags = tags[1:]
-		}
-
-		proj.Tags = tags
-	}
-
-	if addTagsFlag.present {
-		// add mentioned tags
-		tags := strings.Split(addTagsFlag.String(), ",")
-
-		// make sure that there's not one empty tag, which happens for the case
-		// `glados update -addtags= projName`
-		if len(tags) != 1 || tags[0] != "" {
-			for _, t := range tags {
-				alreadyHas := false
-
-				for _, str := range proj.Tags {
-					if str == t {
-						alreadyHas = true
-						break
-					}
-				}
-
-				if !alreadyHas {
-					proj.Tags = append(proj.Tags, t)
-				}
+		proj.Tags = catalog.TagSet(tagsFlag.ts)
+	} else {
+		if addTagsFlag.present {
+			for _, tag := range addTagsFlag.ts {
+				proj.Tags.Add(tag)
 			}
 		}
-	}
-
-	if delTagsFlag.present {
-		// remove mentioned tags
-		for _, t := range strings.Split(delTagsFlag.String(), ",") {
-			proj.Tags = removeTag(proj.Tags, t)
+		if delTagsFlag.present {
+			for _, tag := range delTagsFlag.ts {
+				proj.Tags.Remove(tag)
+			}
 		}
 	}
 
 	if err := cat.PutProject(proj); err != nil {
 		fail(err)
 	}
-}
-
-func removeTag(tags []string, tag string) []string {
-	for i, str := range tags {
-		if str == tag {
-			return append(tags[:i], tags[i+1:]...)
-		}
-	}
-	return tags
 }
 
 func updateString(s *string, f *optStringFlag) {

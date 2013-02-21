@@ -106,7 +106,10 @@ type optStringFlag struct {
 }
 
 func (f *optStringFlag) String() string {
-	return f.s
+	if !f.present {
+		return `""`
+	}
+	return `"` + f.s + `"`
 }
 
 func (f *optStringFlag) Set(val string) error {
@@ -118,7 +121,7 @@ func (f *optStringFlag) Set(val string) error {
 type timeFlag time.Time
 
 func (t *timeFlag) String() string {
-	return (*time.Time)(t).Format(time.RFC3339)
+	return `"` + (*time.Time)(t).Format(time.RFC3339) + `"`
 }
 
 func (t *timeFlag) Set(s string) error {
@@ -134,7 +137,7 @@ type optTimeFlag struct {
 
 func (f *optTimeFlag) String() string {
 	if !f.present || time.Time(f.t).IsZero() {
-		return ""
+		return `""`
 	}
 	return f.t.String()
 }
@@ -144,26 +147,32 @@ func (f *optTimeFlag) Set(s string) error {
 	return f.t.Set(s)
 }
 
-type tagsList []string
+type tagSetFlag catalog.TagSet
 
-func (tl tagsList) String() string {
-	return strings.Join([]string(tl), ",")
+func (f *tagSetFlag) String() string {
+	return `"` + catalog.TagSet(*f).String() + `"`
 }
 
-func (tl *tagsList) Set(val string) error {
-	tags := strings.Split(val, ",")
-	for i := range tags {
-		tags[i] = strings.TrimSpace(tags[i])
-	}
-	for i := 0; i < len(tags); {
-		if tags[i] == "" {
-			tags = append(tags[:i], tags[i+1:]...)
-		} else {
-			i++
-		}
-	}
-	*tl = tags
+func (f *tagSetFlag) Set(val string) error {
+	*f = tagSetFlag(catalog.ParseTagSet(val))
 	return nil
+}
+
+type optTagSetFlag struct {
+	ts      tagSetFlag
+	present bool
+}
+
+func (f *optTagSetFlag) String() string {
+	if !f.present {
+		return `""`
+	}
+	return f.ts.String()
+}
+
+func (f *optTagSetFlag) Set(s string) error {
+	f.present = true
+	return f.ts.Set(s)
 }
 
 var validVCSTypes = []string{

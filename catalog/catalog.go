@@ -2,6 +2,7 @@
 package catalog
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -29,12 +30,12 @@ type Catalog interface {
 
 // Project is the metadata associated with a project.
 type Project struct {
-	ID          ID       `json:"id"`
-	ShortName   string   `json:"shortname"`
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Homepage    string   `json:"homepage,omitempty"`
+	ID          ID     `json:"id"`
+	ShortName   string `json:"shortname"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Tags        TagSet `json:"tags,omitempty"`
+	Homepage    string `json:"homepage,omitempty"`
 
 	CatalogTime time.Time `json:"catalog_time"`
 	CreateTime  time.Time `json:"create_time"`
@@ -66,6 +67,35 @@ type HostInfo struct {
 
 // TagSet is a set of tags (strings).
 type TagSet []string
+
+// ParseTagSet builds a tag set from a comma-separated list of tags.
+// Tags are trimmed of whitespace.  Any empty tags are discarded.
+func ParseTagSet(s string) TagSet {
+	tags := TagSet(strings.Split(s, ","))
+	for i := range tags {
+		tags[i] = strings.TrimSpace(tags[i])
+	}
+	for i := 0; i < len(tags); {
+		if tags[i] == "" {
+			tags = append(tags[:i], tags[i+1:]...)
+		} else {
+			i++
+		}
+	}
+	return tags
+}
+
+func (ts TagSet) String() string {
+	return strings.Join([]string(ts), ",")
+}
+
+func (ts TagSet) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]string(ts))
+}
+
+func (ts *TagSet) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, (*[]string)(ts))
+}
 
 // Find searches for the first occurrence of a tag in the set, or -1 if the tag is not found.
 func (ts TagSet) Find(tag string) int {
