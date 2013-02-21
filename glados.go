@@ -184,17 +184,21 @@ func cmdUpdate(args []string) {
 	const synopsis = "update [options] PROJECT"
 
 	var (
-		name     optStringFlag
-		tagsFlag optStringFlag
-		path     optStringFlag
-		homepage optStringFlag
-		vcsType  optStringFlag
-		vcsURL   optStringFlag
+		name        optStringFlag
+		tagsFlag    optStringFlag
+		addTagsFlag optStringFlag
+		delTagsFlag optStringFlag
+		path        optStringFlag
+		homepage    optStringFlag
+		vcsType     optStringFlag
+		vcsURL      optStringFlag
 	)
 
 	fset := newFlagSet("update", synopsis)
 	fset.Var(&name, "name", "human-readable name of project")
-	fset.Var(&tagsFlag, "tags", "comma-separated tags to assign to the new project")
+	fset.Var(&tagsFlag, "tags", "comma-separated tags to assign to the project. This removes any previous flags")
+	fset.Var(&addTagsFlag, "addtags", "comma-separated tags to add to the project. This retains any previous flags")
+	fset.Var(&delTagsFlag, "deltags", "comma-separated tags to remove from the project. This retains any unmentioned previous flags")
 	fset.Var(&path, "path", "path of working copy")
 	fset.Var(&homepage, "url", "project homepage")
 	fset.Var(&vcsType, "vcs", "type of VCS for project")
@@ -245,29 +249,34 @@ func cmdUpdate(args []string) {
 		}
 		proj.PerHost[host].Path = path.s
 	}
+
 	if tagsFlag.present {
-		// add everything in the list
-		for _, t := range strings.Split(tagsFlag.String(), ",") {
-			if strings.Index(t, "-") != 0 {
-				// "-" is not the first char in the tag, add it to tags
-				alreadyHas := false
+		// set the tags to what the flag had
+		proj.Tags = strings.Split(tagsFlag.String(), ",")
+	}
 
-				for _, str := range proj.Tags {
-					if (str == t) {
-						alreadyHas = true
-						break
-					}
-				}
+	if addTagsFlag.present {
+		// add mentioned tags
+		for _, t := range strings.Split(addTagsFlag.String(), ",") {
+			alreadyHas := false
 
-				if !alreadyHas {
-					proj.Tags = append(proj.Tags, t)
-				}
-			} else {
-				// remove it from the list because it has a dash ("-") at the beginning
-				if !removeTag(proj, t[1:]) {
-					fail("No such tag '" + t + "' to be removed.")
+			for _, str := range proj.Tags {
+				if str == t {
+					alreadyHas = true
+					break
 				}
 			}
+
+			if !alreadyHas {
+				proj.Tags = append(proj.Tags, t)
+			}
+		}
+	}
+
+	if delTagsFlag.present {
+		// remove mentioned tags
+		for _, t := range strings.Split(delTagsFlag.String(), ",") {
+			proj.Tags = removeTag(proj.Tags, t)
 		}
 	}
 
@@ -276,19 +285,15 @@ func cmdUpdate(args []string) {
 	}
 }
 
-func removeTag(proj *catalog.Project, tag string) (removed bool) {
-	removed = false
-
-	for i, str := range proj.Tags {
+func removeTag(tags []string, tag string) []string {
+	for i, str := range tags {
 		if str == tag {
-			removed = true
-			a := &proj.Tags
-			*a = append((*a)[:i], (*a)[i+1:]...)
-			break
+			a := &tags
+			b := append((*a)[:i], (*a)[i+1:]...)
+			return b
 		}
 	}
-
-	return
+	return tags
 }
 
 func updateString(s *string, f *optStringFlag) {
