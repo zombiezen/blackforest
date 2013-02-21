@@ -330,23 +330,36 @@ func cmdUpdate(cmd *subcmd, args []string) {
 
 	if tagsFlag.present {
 		// set the tags to what the flag had
-		proj.Tags = strings.Split(tagsFlag.String(), ",")
+		tags := strings.Split(tagsFlag.String(), ",")
+
+		// if there's nothing actually there, remove the empty tag
+		if len(tags) == 1 && tags[0] == "" {
+			tags = tags[1:]
+		}
+
+		proj.Tags = tags
 	}
 
 	if addTagsFlag.present {
 		// add mentioned tags
-		for _, t := range strings.Split(addTagsFlag.String(), ",") {
-			alreadyHas := false
+		tags := strings.Split(addTagsFlag.String(), ",")
 
-			for _, str := range proj.Tags {
-				if str == t {
-					alreadyHas = true
-					break
+		// make sure that there's not one empty tag, which happens for the case
+		// `glados update -addtags= projName`
+		if len(tags) != 1 || tags[0] != "" {
+			for _, t := range tags {
+				alreadyHas := false
+
+				for _, str := range proj.Tags {
+					if str == t {
+						alreadyHas = true
+						break
+					}
 				}
-			}
 
-			if !alreadyHas {
-				proj.Tags = append(proj.Tags, t)
+				if !alreadyHas {
+					proj.Tags = append(proj.Tags, t)
+				}
 			}
 		}
 	}
