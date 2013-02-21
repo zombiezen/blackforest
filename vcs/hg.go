@@ -119,6 +119,28 @@ func (wc *mercurialWC) Add(paths []string) error {
 	return nil
 }
 
+func (wc *mercurialWC) Remove(paths []string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	args := make([]string, len(paths)+1)
+	args[0] = "remove"
+	for i, p := range paths {
+		args[i+1] = "path:" + p
+	}
+	if err := wc.cmd(args...).Run(); err != nil {
+		return &mercurialError{Op: "remove", Path: wc.path, Err: err}
+	}
+	return nil
+}
+
+func (wc *mercurialWC) Rename(src, dst string) error {
+	if err := wc.cmd("rename", "--after", "--", src, dst).Run(); err != nil {
+		return &mercurialError{Op: "rename", Path: wc.path, Err: err}
+	}
+	return nil
+}
+
 func (wc *mercurialWC) Commit(message string, files []string) error {
 	var args []string
 	if files == nil {

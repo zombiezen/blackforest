@@ -24,8 +24,14 @@ type WorkingCopy interface {
 	// Current returns the Rev the working copy is currently updated to.
 	Current() (Rev, error)
 
-	// Add adds files to the next commit.
+	// Add marks files for addition on the next commit.
 	Add(paths []string) error
+
+	// Remove marks files for removal on the next commit.
+	Remove(paths []string) error
+
+	// Rename marks a file as renamed on the next commit.
+	Rename(src, dst string) error
 
 	// Commit creates a new changeset.
 	// If files is nil, all dirty files will be committed.

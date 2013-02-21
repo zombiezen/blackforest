@@ -52,6 +52,39 @@ func TestMercurialAdd(t *testing.T) {
 	}
 }
 
+func TestMercurialRemove(t *testing.T) {
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBuffer([]byte{}),
+			ExpectDir:  desiredWC,
+			ExpectArgs: []string{"hg", "remove", "path:foo", "path:bar"},
+		},
+	}
+	wc := newIsolatedMercurialWC(desiredWC, mc)
+	files := []string{"foo", "bar"}
+	err := wc.Remove(files)
+	mc.check(t)
+	if err != nil {
+		t.Errorf("wc.Remove(%q) error: %v", files, err)
+	}
+}
+
+func TestMercurialRename(t *testing.T) {
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBuffer([]byte{}),
+			ExpectDir:  desiredWC,
+			ExpectArgs: []string{"hg", "rename", "--after", "--", "foo", "bar"},
+		},
+	}
+	wc := newIsolatedMercurialWC(desiredWC, mc)
+	err := wc.Rename("foo", "bar")
+	mc.check(t)
+	if err != nil {
+		t.Errorf("wc.Rename(%q, %q) error: %v", "foo", "bar", err)
+	}
+}
+
 func TestMercurialCommit(t *testing.T) {
 	const commitMessage = "Hello, World!"
 
