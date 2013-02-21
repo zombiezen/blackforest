@@ -211,7 +211,7 @@ func cmdUpdate(args []string) {
 
 	// for tag operations, make sure that if setting, then not adding or deleting
 	if tagsFlag.present && (addTagsFlag.present || delTagsFlag.present) {
-		fail("Cannot set tags with -addtags or -deltags")
+		fail("Cannot use -tags flag with -addtags or -deltags")
 	}
 
 	cat := requireCatalog()
@@ -295,9 +295,7 @@ func cmdUpdate(args []string) {
 func removeTag(tags []string, tag string) []string {
 	for i, str := range tags {
 		if str == tag {
-			a := &tags
-			b := append((*a)[:i], (*a)[i+1:]...)
-			return b
+			return append(tags[:i], tags[i+1:]...)
 		}
 	}
 	return tags
