@@ -245,10 +245,50 @@ func cmdUpdate(args []string) {
 		}
 		proj.PerHost[host].Path = path.s
 	}
+	if tagsFlag.present {
+		// add everything in the list
+		for _, t := range strings.Split(tagsFlag.String(), ",") {
+			if strings.Index(t, "-") != 0 {
+				// "-" is not the first char in the tag, add it to tags
+				alreadyHas := false
+
+				for _, str := range proj.Tags {
+					if (str == t) {
+						alreadyHas = true
+						break
+					}
+				}
+
+				if !alreadyHas {
+					proj.Tags = append(proj.Tags, t)
+				}
+			} else {
+				// remove it from the list because it has a dash ("-") at the beginning
+				if !removeTag(proj, t[1:]) {
+					fail("No such tag '" + t + "' to be removed.")
+				}
+			}
+		}
+	}
 
 	if err := cat.PutProject(proj); err != nil {
 		fail(err)
 	}
+}
+
+func removeTag(proj *catalog.Project, tag string) (removed bool) {
+	removed = false
+
+	for i, str := range proj.Tags {
+		if str == tag {
+			removed = true
+			a := &proj.Tags
+			*a = append((*a)[:i], (*a)[i+1:]...)
+			break
+		}
+	}
+
+	return
 }
 
 func updateString(s *string, f *optStringFlag) {
