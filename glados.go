@@ -52,7 +52,7 @@ var commands = []subcmd{
 	{cmdInit, "init", []string{}, "init -catalog=PATH", "create a catalog"},
 	{cmdList, "list", []string{"ls"}, "list", "list project short names"},
 	{cmdPath, "path", []string{}, "path PROJECT", "print a project's local path"},
-	{cmdShow, "show", []string{}, "show PROJECT [...]", "print projects"},
+	{cmdShow, "show", []string{"info"}, "show PROJECT [...]", "print projects"},
 	{cmdCreate, "create", []string{}, "create [options] NAME", "create a project"},
 	{cmdUpdate, "update", []string{"up"}, "update [options] PROJECT", "change project fields"},
 	{cmdRename, "rename", []string{"mv"}, "rename SRC DST", "change a project's short name"},
