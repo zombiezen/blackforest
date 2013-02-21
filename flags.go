@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // environment variable names
@@ -20,28 +21,58 @@ var (
 	host        string = os.Getenv(HostEnv)
 )
 
-func newFlagSet(name string, synopsis string) *flag.FlagSet {
-	fset := flag.NewFlagSet(name, flag.ContinueOnError)
-	fset.StringVar(&catalogPath, "catalog", catalogPath, "path to catalog directory (overrides the "+CatalogPathEnv+" environment variable)")
-	fset.StringVar(&host, "host", host, "key for this host (overrides the "+HostEnv+" environment variable)")
+type subcmd struct {
+	Func        func(*subcmd, []string)
+	Name        string
+	Aliases     []string
+	Synopsis    string
+	Description string
+}
+
+func (cmd *subcmd) NewFlagSet() *flag.FlagSet {
+	fset := flag.NewFlagSet(cmd.Name, flag.ContinueOnError)
+	globalFlags(fset)
 	fset.Usage = func() {
-		printUsage(fset, name, synopsis)
+		cmd.PrintUsage(fset)
 	}
 	fset.SetOutput(os.Stdout)
 	return fset
 }
 
-func printUsage(fset *flag.FlagSet, name string, synopsis string) {
-	fmt.Printf("Usage of %s:\n", name)
-	if synopsis != "" {
-		fmt.Printf("  %s\n\n", synopsis)
+// Matches returns whether name is one of the recognized forms of cmd.
+func (cmd *subcmd) Matches(name string) bool {
+	if name == cmd.Name {
+		return true
 	}
+	for _, a := range cmd.Aliases {
+		if name == a {
+			return true
+		}
+	}
+	return false
+}
+
+func (cmd *subcmd) PrintUsage(fset *flag.FlagSet) {
+	if cmd.Synopsis != "" {
+		fmt.Printf("glados %s\n\n", cmd.Synopsis)
+	} else {
+		fmt.Printf("Usage of %s:\n\n", cmd.Name)
+	}
+	if cmd.Description != "" {
+		fmt.Print(cmd.Description + "\n\n")
+	}
+	fmt.Print("options:\n\n")
 	fset.PrintDefaults()
 }
 
-func exitSynopsis(synopsis string) {
-	fmt.Fprintln(os.Stderr, "usage: glados", synopsis)
+func (cmd *subcmd) ExitSynopsis() {
+	fmt.Fprintln(os.Stderr, "usage: glados", cmd.Synopsis)
 	os.Exit(exitUsage)
+}
+
+func globalFlags(fset *flag.FlagSet) {
+	fset.StringVar(&catalogPath, "catalog", catalogPath, "path to catalog directory (overrides the "+CatalogPathEnv+" environment variable)")
+	fset.StringVar(&host, "host", host, "key for this host (overrides the "+HostEnv+" environment variable)")
 }
 
 func fail(args ...interface{}) {
@@ -82,6 +113,35 @@ func (f *optStringFlag) Set(val string) error {
 	f.s = val
 	f.present = true
 	return nil
+}
+
+type timeFlag time.Time
+
+func (t *timeFlag) String() string {
+	return (*time.Time)(t).Format(time.RFC3339)
+}
+
+func (t *timeFlag) Set(s string) error {
+	tt, err := time.Parse(time.RFC3339, s)
+	*t = timeFlag(tt)
+	return err
+}
+
+type optTimeFlag struct {
+	t       timeFlag
+	present bool
+}
+
+func (f *optTimeFlag) String() string {
+	if !f.present || time.Time(f.t).IsZero() {
+		return ""
+	}
+	return f.t.String()
+}
+
+func (f *optTimeFlag) Set(s string) error {
+	f.present = true
+	return f.t.Set(s)
 }
 
 type tagsList []string
