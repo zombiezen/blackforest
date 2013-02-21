@@ -400,7 +400,7 @@ func requireCatalog() catalog.Catalog {
 	if catalogPath == "" {
 		fail(CatalogPathEnv + " not set")
 	}
-	cat, err := catalog.Open(catalogPath)
+	cat, err := catalog.Open(catalogPath, nil)
 	if err != nil {
 		fail(err)
 	}

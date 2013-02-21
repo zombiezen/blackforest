@@ -12,7 +12,7 @@ import (
 type localCatalog struct {
 	root string
 	fs   filesystem
-	vcs  vcs.VCS
+	wc   vcs.WorkingCopy
 }
 
 // Create creates a new catalog at the given directory.
@@ -28,7 +28,7 @@ func create(fs filesystem, root string) (*localCatalog, error) {
 
 	// Lock catalog
 	cat := &localCatalog{root: root, fs: fs}
-	err := cat.doChange(func() error {
+	err := cat.doChange("", func() error {
 		// Create projects directory
 		if err := fs.Mkdir(filepath.Join(root, projectsDir)); err != nil {
 			return err
@@ -57,7 +57,9 @@ func create(fs filesystem, root string) (*localCatalog, error) {
 }
 
 // Open opens the catalog in a directory.
-func Open(root string) (Catalog, error) {
+// If vc is not nil, then a working copy will be opened at root and will be used to commit any
+// changes made to the catalog.
+func Open(root string, vc vcs.VCS) (Catalog, error) {
 	fs := realFilesystem{}
 	var v struct {
 		Version int `json:"version"`
@@ -68,7 +70,15 @@ func Open(root string) (Catalog, error) {
 	if v.Version != 1 {
 		return nil, VersionError(v.Version)
 	}
-	return &localCatalog{root: root, fs: fs}, nil
+	catalog := &localCatalog{root: root, fs: fs}
+	if vc != nil {
+		wc, err := vc.WorkingCopy(root)
+		if err != nil {
+			return catalog, err
+		}
+		catalog.wc = wc
+	}
+	return catalog, nil
 }
 
 func (cat *localCatalog) List() ([]string, error) {
@@ -119,11 +129,13 @@ func (cat *localCatalog) PutProject(project *Project) (retErr error) {
 	if !isValidShortName(sn) {
 		return shortNameError(sn)
 	}
-	return cat.doChange(func() error {
+	return cat.doChange("put project "+project.ShortName, func() error {
 		var old string
+		var isNewName bool
 		err := cat.rewriteCatalog(func(c *catalogMeta) error {
 			old, c.ShortNameMap[idString] = c.ShortNameMap[idString], sn
-			if err := writeJSON(cat.fs, cat.projectPath(sn), project, old != project.ShortName); err != nil {
+			isNewName = old != project.ShortName
+			if err := writeJSON(cat.fs, cat.projectPath(sn), project, isNewName); err != nil {
 				return err
 			}
 			return nil
@@ -131,11 +143,24 @@ func (cat *localCatalog) PutProject(project *Project) (retErr error) {
 		if err != nil {
 			return &projectError{ShortName: sn, Op: op, Err: err}
 		}
+		if isNewName && cat.wc != nil {
+			if err := cat.wc.Add([]string{cat.projectRelPath(sn)}); err != nil {
+				return &projectError{ShortName: sn, Op: op, Err: err}
+			}
+		}
 
 		// Delete old file (if necessary)
-		if old != "" && old != project.ShortName {
+		if old != "" && isNewName {
 			if err := cat.fs.Remove(cat.projectPath(old)); err != nil {
 				return &projectError{ShortName: sn, Op: op, Err: err}
+			}
+			if cat.wc != nil {
+				if err := cat.wc.Remove([]string{cat.projectRelPath(old)}); err != nil {
+					return &projectError{ShortName: sn, Op: op, Err: err}
+				}
+				if err := cat.wc.Rename(cat.projectRelPath(old), cat.projectRelPath(sn)); err != nil {
+					return &projectError{ShortName: sn, Op: op, Err: err}
+				}
 			}
 		}
 
@@ -149,7 +174,7 @@ func (cat *localCatalog) DelProject(shortName string) error {
 	if !isValidShortName(shortName) {
 		return shortNameError(shortName)
 	}
-	return cat.doChange(func() error {
+	return cat.doChange("delete project "+shortName, func() error {
 		// Rewrite catalog
 		err := cat.rewriteCatalog(func(c *catalogMeta) error {
 			m := c.ShortNameMap
@@ -168,13 +193,22 @@ func (cat *localCatalog) DelProject(shortName string) error {
 		if err := cat.fs.Remove(cat.projectPath(shortName)); err != nil {
 			return &projectError{ShortName: shortName, Op: op, Err: err}
 		}
+		if cat.wc != nil {
+			if err := cat.wc.Remove([]string{cat.projectRelPath(shortName)}); err != nil {
+				return &projectError{ShortName: shortName, Op: op, Err: err}
+			}
+		}
 
 		return nil
 	})
 }
 
 func (cat *localCatalog) projectPath(shortName string) string {
-	return filepath.Join(cat.root, projectsDir, shortName+jsonExt)
+	return filepath.Join(cat.root, cat.projectRelPath(shortName))
+}
+
+func (cat *localCatalog) projectRelPath(shortName string) string {
+	return filepath.Join(projectsDir, shortName+jsonExt)
 }
 
 func (cat *localCatalog) ShortName(id ID) (string, error) {
@@ -187,14 +221,23 @@ func (cat *localCatalog) ShortName(id ID) (string, error) {
 	return c.Map[id.String()], nil
 }
 
-// doChange locks the catalog, calls f, and then unlocks the catalog.  Any error returned by f is passed through.  It is the responsibility of the function called to roll back any change on failure, if desired.
-func (cat *localCatalog) doChange(f func() error) error {
+// doChange locks the catalog, calls f, and then unlocks the catalog.
+//
+// Any error returned by f is passed through.  It is the responsibility of the function called to
+// roll back any change on failure, if desired.  If f succeeds (i.e. returns nil) and the catalog
+// has an associated working copy, then doChange will commit the change.
+func (cat *localCatalog) doChange(message string, f func() error) error {
 	if err := cat.lock(); err != nil {
 		return err
 	}
 	ferr := f()
 	if err := cat.unlock(); err != nil && ferr == nil {
 		return err
+	}
+	if ferr == nil && cat.wc != nil {
+		if err := cat.wc.Commit(message, nil); err != nil {
+			return err
+		}
 	}
 	return ferr
 }
