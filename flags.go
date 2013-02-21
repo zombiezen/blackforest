@@ -61,6 +61,9 @@ func (cmd *subcmd) PrintUsage(fset *flag.FlagSet) {
 	if cmd.Description != "" {
 		fmt.Print(cmd.Description + "\n\n")
 	}
+	if len(cmd.Aliases) > 0 {
+		fmt.Print("aliases: " + strings.Join(cmd.Aliases, ", ") + "\n\n")
+	}
 	fmt.Print("options:\n\n")
 	fset.PrintDefaults()
 }
