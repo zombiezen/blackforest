@@ -29,10 +29,10 @@ func TestMercurialCheckout(t *testing.T) {
 	}
 	c := mc
 	hg := &Mercurial{Program: "hg", commander: &c}
-	err := hg.checkout(wcPath, cloneURL)
+	err := hg.checkout(cloneURL, wcPath)
 	mc.check(t)
 	if err != nil {
-		t.Error("hg.checkout(%q, %q) error:", wcPath, cloneURL, err)
+		t.Error("hg.checkout(%q, %q) error:", cloneURL, wcPath, err)
 	}
 }
 

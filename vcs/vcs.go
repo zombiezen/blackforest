@@ -11,7 +11,7 @@ var errNotWC = errors.New("not a working copy")
 type VCS interface {
 	IsWorkingCopy(path string) (bool, error)
 	WorkingCopy(path string) (WorkingCopy, error)
-	Checkout(path, url string) (WorkingCopy, error)
+	Checkout(url, path string) (WorkingCopy, error)
 }
 
 // WorkingCopy is a filesystem directory that mirrors a version control repository.  Any paths given to this interface are filesystem paths relative to the directory (unless otherwise specified).
