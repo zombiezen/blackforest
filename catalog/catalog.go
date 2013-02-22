@@ -43,6 +43,28 @@ type Project struct {
 	PerHost map[string]*HostInfo `json:"per_host,omitempty"`
 }
 
+// Path returns the project's path for a host.
+func (proj *Project) Path(host string) string {
+	if proj.PerHost == nil {
+		return ""
+	}
+	info := proj.PerHost[host]
+	if info == nil {
+		return ""
+	}
+	return info.Path
+}
+
+// SetPath sets the project's per-host path.
+func (proj *Project) SetPath(host, path string) {
+	if proj.PerHost == nil {
+		proj.PerHost = map[string]*HostInfo{host: new(HostInfo)}
+	} else if proj.PerHost[host] == nil {
+		proj.PerHost[host] = new(HostInfo)
+	}
+	proj.PerHost[host].Path = path
+}
+
 // VCSInfo holds the version control information in a project record.
 type VCSInfo struct {
 	Type string `json:"type"`
