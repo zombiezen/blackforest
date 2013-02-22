@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -285,6 +286,11 @@ func cmdCreate(cmd *subcmd, args []string) {
 		failf("%q is not a valid -vcs\nvalid choices are: %s\n", proj.VCS.Type, validVCSText)
 	}
 	if hostInfo.Path != "" {
+		absPath, err := filepath.Abs(filepath.Clean(hostInfo.Path))
+		if err != nil {
+			fail(err)
+		}
+		hostInfo.Path = absPath
 		if host == "" {
 			fail("-path given and " + HostEnv + " not set")
 		}
@@ -363,6 +369,12 @@ func cmdUpdate(cmd *subcmd, args []string) {
 	if path.present {
 		if host == "" {
 			fail("-path given, but " + HostEnv + " not set")
+		}
+		if path.s != "" {
+			var err error
+			if path.s, err = filepath.Abs(filepath.Clean(path.s)); err != nil {
+				fail(err)
+			}
 		}
 		if proj.PerHost == nil {
 			proj.PerHost = make(map[string]*catalog.HostInfo)
