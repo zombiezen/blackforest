@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -57,6 +58,7 @@ var commands = []subcmd{
 	{cmdUpdate, "update", []string{"up"}, "update [options] PROJECT", "change project fields"},
 	{cmdRename, "rename", []string{"mv"}, "rename SRC DST", "change a project's short name"},
 	{cmdDelete, "delete", []string{"del", "rm"}, "delete PROJECT [...]", "delete projects"},
+	{cmdImport, "import", []string{}, "import [PATH [...]]", "import project(s) from JSON"},
 }
 
 func cmdInit(cmd *subcmd, args []string) {
@@ -197,6 +199,45 @@ func fmtSimpleTime(t time.Time) string {
 
 func fmtRFC3339Time(t time.Time) string {
 	return t.Format(time.RFC3339)
+}
+
+func cmdImport(cmd *subcmd, args []string) {
+	fset := cmd.NewFlagSet()
+	parseFlags(fset, args)
+	cat := requireCatalog()
+
+	if fset.NArg() == 0 {
+		if err := importProject(cat, os.Stdin); err != nil {
+			fail(err)
+		}
+	} else {
+		failed := false
+		for _, path := range fset.Args() {
+			f, err := os.Open(path)
+			if err == nil {
+				err := importProject(cat, f)
+				f.Close()
+				if err != nil {
+					failed = true
+					fmt.Fprintln(os.Stderr, err)
+				}
+			} else {
+				fmt.Fprintln(os.Stderr, err)
+				failed = true
+			}
+		}
+		if failed {
+			os.Exit(exitFailure)
+		}
+	}
+}
+
+func importProject(cat catalog.Catalog, r io.Reader) error {
+	var proj catalog.Project
+	if err := json.NewDecoder(r).Decode(&proj); err != nil {
+		return err
+	}
+	return cat.PutProject(&proj)
 }
 
 const rfc3339example = "2006-01-02T15:04:05-07:00"
