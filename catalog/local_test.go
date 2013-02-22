@@ -1,10 +1,13 @@
 package catalog
 
 import (
+	"errors"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
+
+	"bitbucket.org/zombiezen/glados/vcs"
 )
 
 var magicTime = time.Date(2013, 2, 7, 10, 51, 13, 0, time.FixedZone("PST", int(-8*time.Hour/time.Second)))
@@ -19,7 +22,7 @@ const exampleProjectJSON = `{
 	"tags": ["go", "http", "os", "tools"]
 }` + "\n"
 
-func newTestCatalog() (*localCatalog, *mockFilesystem) {
+func newTestCatalog() (*localCatalog, *mockFilesystem, *mockWC) {
 	const sep = string(filepath.Separator)
 
 	fs := newMockFS()
@@ -34,7 +37,11 @@ func newTestCatalog() (*localCatalog, *mockFilesystem) {
 	fs.Mkdir("foo" + sep + "projects")
 	fs.makeFile("foo"+sep+"projects"+sep+"glados.json", exampleProjectJSON)
 
-	return &localCatalog{root: "foo", fs: fs}, fs
+	wc := &mockWC{
+		renamed: make(map[string]string),
+	}
+
+	return &localCatalog{root: "foo", fs: fs, wc: wc}, fs, wc
 }
 
 func TestLocalCreate(t *testing.T) {
@@ -69,7 +76,7 @@ func TestLocalCreate(t *testing.T) {
 }
 
 func TestLocalList(t *testing.T) {
-	cat, _ := newTestCatalog()
+	cat, _, wc := newTestCatalog()
 	list, err := cat.List()
 	if want := []string{"glados"}; !reflect.DeepEqual(list, want) {
 		t.Errorf("cat.List() = %q; want %q", list, want)
@@ -77,10 +84,23 @@ func TestLocalList(t *testing.T) {
 	if err != nil {
 		t.Errorf("cat.List() error = %v", err)
 	}
+
+	if len(wc.added) != 0 {
+		t.Errorf("vcs added = %v; want []", wc.added)
+	}
+	if len(wc.removed) != 0 {
+		t.Errorf("vcs removed = %v; want []", wc.removed)
+	}
+	if len(wc.renamed) != 0 {
+		t.Errorf("vcs renamed = %v; want {}", wc.renamed)
+	}
+	if wc.committed {
+		t.Error("vcs committed")
+	}
 }
 
 func TestLocalShortName(t *testing.T) {
-	cat, _ := newTestCatalog()
+	cat, _, wc := newTestCatalog()
 	id := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
 	sn, err := cat.ShortName(id)
 	if want := "glados"; sn != want {
@@ -89,10 +109,23 @@ func TestLocalShortName(t *testing.T) {
 	if err != nil {
 		t.Errorf("cat.ShortName(%v) error = %v", id, err)
 	}
+
+	if len(wc.added) != 0 {
+		t.Errorf("vcs added = %v; want []", wc.added)
+	}
+	if len(wc.removed) != 0 {
+		t.Errorf("vcs removed = %v; want []", wc.removed)
+	}
+	if len(wc.renamed) != 0 {
+		t.Errorf("vcs renamed = %v; want {}", wc.renamed)
+	}
+	if wc.committed {
+		t.Error("vcs committed")
+	}
 }
 
 func TestLocalGetProject(t *testing.T) {
-	cat, _ := newTestCatalog()
+	cat, _, wc := newTestCatalog()
 	proj, err := cat.GetProject("glados")
 	want := &Project{
 		ID:          ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d},
@@ -109,13 +142,26 @@ func TestLocalGetProject(t *testing.T) {
 	if err != nil {
 		t.Errorf("cat.GetProject(%q) error = %v", want.ShortName, err)
 	}
+
+	if len(wc.added) != 0 {
+		t.Errorf("vcs added = %v; want []", wc.added)
+	}
+	if len(wc.removed) != 0 {
+		t.Errorf("vcs removed = %v; want []", wc.removed)
+	}
+	if len(wc.renamed) != 0 {
+		t.Errorf("vcs renamed = %v; want {}", wc.renamed)
+	}
+	if wc.committed {
+		t.Error("vcs committed")
+	}
 }
 
 func TestLocalPutProject_New(t *testing.T) {
 	const root = "foo"
 
 	id := ID{0xba, 0x7b, 0xbb, 0x6c, 0x2b, 0x66, 0x61, 0x54, 0xfb}
-	cat, fs := newTestCatalog()
+	cat, fs, wc := newTestCatalog()
 	proj := &Project{
 		ID:          id,
 		ShortName:   "foo",
@@ -152,13 +198,26 @@ func TestLocalPutProject_New(t *testing.T) {
 	if err != nil {
 		t.Errorf("cat.ShortName(%v) error = %v", id, err)
 	}
+
+	if want := []string{"projects/foo.json"}; !reflect.DeepEqual(wc.added, want) {
+		t.Errorf("vcs added = %v; want %v", wc.added, want)
+	}
+	if len(wc.removed) != 0 {
+		t.Errorf("vcs removed = %v; want []", wc.removed)
+	}
+	if len(wc.renamed) != 0 {
+		t.Errorf("vcs renamed = %v; want {}", wc.renamed)
+	}
+	if !wc.committed {
+		t.Error("vcs not committed")
+	}
 }
 
 func TestLocalPutProject_Update(t *testing.T) {
 	const root = "foo"
 
 	id := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
-	cat, fs := newTestCatalog()
+	cat, fs, wc := newTestCatalog()
 	proj := &Project{
 		ID:          id,
 		ShortName:   "glados",
@@ -195,13 +254,26 @@ func TestLocalPutProject_Update(t *testing.T) {
 	if err != nil {
 		t.Errorf("cat.ShortName(%v) error = %v", id, err)
 	}
+
+	if len(wc.added) != 0 {
+		t.Errorf("vcs added = %v; want []", wc.added)
+	}
+	if len(wc.removed) != 0 {
+		t.Errorf("vcs removed = %v; want []", wc.removed)
+	}
+	if len(wc.renamed) != 0 {
+		t.Errorf("vcs renamed = %v; want {}", wc.renamed)
+	}
+	if !wc.committed {
+		t.Error("vcs not committed")
+	}
 }
 
 func TestLocalPutProject_Rename(t *testing.T) {
 	const root = "foo"
 
 	id := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
-	cat, fs := newTestCatalog()
+	cat, fs, wc := newTestCatalog()
 	proj := &Project{
 		ID:          id,
 		ShortName:   "foo",
@@ -242,13 +314,26 @@ func TestLocalPutProject_Rename(t *testing.T) {
 	if err != nil {
 		t.Errorf("cat.ShortName(%v) error = %v", id, err)
 	}
+
+	if want := []string{"projects/foo.json"}; !reflect.DeepEqual(wc.added, want) {
+		t.Errorf("vcs added = %v; want %v", wc.added, want)
+	}
+	if want := []string{"projects/glados.json"}; !reflect.DeepEqual(wc.removed, want) {
+		t.Errorf("vcs removed = %v; want %v", wc.removed, want)
+	}
+	if want := map[string]string{"projects/glados.json": "projects/foo.json"}; !reflect.DeepEqual(wc.renamed, want) {
+		t.Errorf("vcs renamed = %v; want %v", wc.renamed, want)
+	}
+	if !wc.committed {
+		t.Error("vcs not committed")
+	}
 }
 
 func TestLocalPutProject_NameConflict(t *testing.T) {
 	const root = "foo"
 
 	id := ID{0x6f, 0x5d, 0x5d, 0xdd, 0x6b, 0x38, 0x49, 0x08, 0x9d}
-	cat, fs := newTestCatalog()
+	cat, fs, wc := newTestCatalog()
 	proj := &Project{
 		ID:          id,
 		ShortName:   "glados",
@@ -283,6 +368,19 @@ func TestLocalPutProject_NameConflict(t *testing.T) {
 	if err != nil {
 		t.Errorf("cat.ShortName(%v) error = %v", id, err)
 	}
+
+	if len(wc.added) != 0 {
+		t.Errorf("vcs added = %v; want []", wc.added)
+	}
+	if len(wc.removed) != 0 {
+		t.Errorf("vcs removed = %v; want []", wc.removed)
+	}
+	if len(wc.renamed) != 0 {
+		t.Errorf("vcs renamed = %v; want {}", wc.renamed)
+	}
+	if wc.committed {
+		t.Error("vcs committed")
+	}
 }
 
 func projectEqual(a, b *Project) bool {
@@ -296,4 +394,51 @@ func projectEqual(a, b *Project) bool {
 		a.CreateTime.Equal(b.CreateTime) &&
 		reflect.DeepEqual(a.VCS, b.VCS) &&
 		reflect.DeepEqual(a.PerHost, b.PerHost)
+}
+
+type mockWC struct {
+	added     []string
+	removed   []string
+	renamed   map[string]string
+	committed bool
+}
+
+func (wc *mockWC) VCS() vcs.VCS {
+	return nil
+}
+
+func (wc *mockWC) Path() string {
+	return "foo"
+}
+
+func (wc *mockWC) Current() (vcs.Rev, error) {
+	return nil, errors.New("mocked")
+}
+
+func (wc *mockWC) Update(rev vcs.Rev) error {
+	return errors.New("mocked")
+}
+
+func (wc *mockWC) ParseRev(s string) (vcs.Rev, error) {
+	return nil, errors.New("mocked")
+}
+
+func (wc *mockWC) Add(paths []string) error {
+	wc.added = append(wc.added, paths...)
+	return nil
+}
+
+func (wc *mockWC) Remove(paths []string) error {
+	wc.removed = append(wc.removed, paths...)
+	return nil
+}
+
+func (wc *mockWC) Rename(src, dst string) error {
+	wc.renamed[src] = dst
+	return nil
+}
+
+func (wc *mockWC) Commit(message string, files []string) error {
+	wc.committed = true
+	return nil
 }
