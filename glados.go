@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -60,6 +61,7 @@ var commands = []subcmd{
 	{cmdRename, "rename", []string{"mv"}, "rename SRC DST", "change a project's short name"},
 	{cmdDelete, "delete", []string{"del", "rm"}, "delete PROJECT [...]", "delete projects"},
 	{cmdImport, "import", []string{}, "import [PATH [...]]", "import project(s) from JSON"},
+	{cmdCheckout, "checkout", []string{"co"}, "checkout PROJECT [PATH]", "check out project from version control"},
 }
 
 func cmdInit(cmd *subcmd, args []string) {
@@ -110,11 +112,11 @@ func cmdPath(cmd *subcmd, args []string) {
 	if err != nil {
 		fail(err)
 	}
-	info := proj.PerHost[host]
-	if info == nil || info.Path == "" {
+	p := proj.Path(host)
+	if p == "" {
 		os.Exit(exitFailure)
 	}
-	fmt.Println(info.Path)
+	fmt.Println(p)
 }
 
 func cmdShow(cmd *subcmd, args []string) {
@@ -165,8 +167,8 @@ func cmdShow(cmd *subcmd, args []string) {
 func showProject(proj *catalog.Project, fmtTime func(time.Time) string) {
 	fmt.Println(proj.Name)
 	showField("ID", proj.ID)
-	if info := proj.PerHost[host]; host != "" && info != nil {
-		showField("Path", info.Path)
+	if p := proj.Path(host); p != "" {
+		showField("Path", p)
 	}
 	if len(proj.Tags) != 0 {
 		sort.Strings(proj.Tags)
@@ -376,13 +378,7 @@ func cmdUpdate(cmd *subcmd, args []string) {
 				fail(err)
 			}
 		}
-		if proj.PerHost == nil {
-			proj.PerHost = make(map[string]*catalog.HostInfo)
-		}
-		if proj.PerHost[host] == nil {
-			proj.PerHost[host] = new(catalog.HostInfo)
-		}
-		proj.PerHost[host].Path = path.s
+		proj.SetPath(host, path.s)
 	}
 
 	if tagsFlag.present {
@@ -451,6 +447,57 @@ func cmdDelete(cmd *subcmd, args []string) {
 	}
 }
 
+func cmdCheckout(cmd *subcmd, args []string) {
+	fset := cmd.NewFlagSet()
+	setPath := fset.Bool("setpath", true, "update the project's path to the new checkout")
+	overwritePath := fset.Bool("overwritepath", false, "change the project's path, even if there already is one")
+	parseFlags(fset, args)
+	if n := fset.NArg(); n == 0 || n > 2 {
+		cmd.ExitSynopsis()
+	}
+	shortName := fset.Arg(0)
+	path := shortName
+	if fset.NArg() == 2 {
+		path = fset.Arg(1)
+	}
+	absPath, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		fail(err)
+	}
+	if *setPath && host == "" {
+		fail(HostEnv + " not set")
+	}
+	cat := requireCatalog()
+
+	proj, err := cat.GetProject(shortName)
+	if err != nil {
+		fail(err)
+	}
+	if proj.VCS == nil || proj.VCS.URL == "" {
+		failf("project %s has no VCS URL", shortName)
+	}
+	if p := proj.Path(host); *setPath && p != "" && !*overwritePath {
+		failf("project already has path: %s\n(use -overwritepath to force)\n", p)
+	}
+
+	var vc vcs.VCS
+	switch proj.VCS.Type {
+	case catalog.Mercurial:
+		vc = new(vcs.Mercurial)
+	default:
+		fail(errUnhandledVCS)
+	}
+	if _, err := vc.Checkout(proj.VCS.URL, absPath); err != nil {
+		fail(err)
+	}
+	if *setPath {
+		proj.SetPath(host, absPath)
+		if err := cat.PutProject(proj); err != nil {
+			fail(err)
+		}
+	}
+}
+
 func requireCatalog() catalog.Catalog {
 	if catalogPath == "" {
 		fail(CatalogPathEnv + " not set")
@@ -471,3 +518,5 @@ func requireCatalog() catalog.Catalog {
 	}
 	return cat
 }
+
+var errUnhandledVCS = errors.New("unhandled VCS")
