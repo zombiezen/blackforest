@@ -15,60 +15,104 @@ import (
 
 	"bitbucket.org/zombiezen/glados/catalog"
 	"bitbucket.org/zombiezen/glados/vcs"
+	"bitbucket.org/zombiezen/subcmd"
 )
 
 func main() {
-	fset := flag.NewFlagSet("glados", flag.ContinueOnError)
-	fset.SetOutput(os.Stdout)
-	fset.Usage = func() {
-		fmt.Println("glados [options] COMMAND ...")
-		fmt.Println()
-		fmt.Println("commands:")
-		for i := range commands {
-			cmd := &commands[i]
-			// TODO(light): only one line of description
-			fmt.Printf("  %-8s %s\n", cmd.Name, cmd.Description)
-		}
-		fmt.Println()
-		fmt.Println("options:")
-		fset.PrintDefaults()
-	}
-	globalFlags(fset)
-	parseFlags(fset, os.Args[1:])
-	if fset.NArg() == 0 {
-		fset.Usage()
+	if err := commandSet.Do(os.Args[1:]); err == nil {
+		os.Exit(exitSuccess)
+	} else if err == flag.ErrHelp {
 		os.Exit(exitUsage)
+	} else if _, ok := err.(subcmd.CommandError); ok {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(exitUsage)
+	} else {
+		fail(err)
 	}
-	cname := fset.Arg(0)
-	for i := range commands {
-		cmd := &commands[i]
-		if cmd.Matches(cname) {
-			cmd.Func(cmd, fset.Args()[1:])
-			os.Exit(exitSuccess)
-		}
-	}
-	fmt.Fprintln(os.Stderr, "unrecognized command:", cname)
-	os.Exit(exitUsage)
 }
 
-var commands = []subcmd{
-	{cmdInit, "init", []string{}, "init -catalog=PATH", "create a catalog"},
-	{cmdList, "list", []string{"ls"}, "list", "list project short names"},
-	{cmdPath, "path", []string{}, "path PROJECT", "print a project's local path"},
-	{cmdShow, "show", []string{"info"}, "show PROJECT [...]", "print projects"},
-	{cmdCreate, "create", []string{}, "create [options] NAME", "create a project"},
-	{cmdUpdate, "update", []string{"up"}, "update [options] PROJECT", "change project fields"},
-	{cmdRename, "rename", []string{"mv"}, "rename SRC DST", "change a project's short name"},
-	{cmdDelete, "delete", []string{"del", "rm"}, "delete PROJECT [...]", "delete projects"},
-	{cmdImport, "import", []string{}, "import [PATH [...]]", "import project(s) from JSON"},
-	{cmdCheckout, "checkout", []string{"co"}, "checkout PROJECT [PATH]", "check out project from version control"},
+var commandSet = subcmd.Set{
+	Name:        "glados",
+	GlobalFlags: globalFlags,
+	Commands: []subcmd.Command{
+		{
+			Func:        cmdInit,
+			Name:        "init",
+			Aliases:     []string{},
+			Synopsis:    "init -catalog=PATH",
+			Description: "create a catalog",
+		},
+		{
+			Func:        cmdList,
+			Name:        "list",
+			Aliases:     []string{"ls"},
+			Synopsis:    "list",
+			Description: "list project short names",
+		},
+		{
+			Func:        cmdPath,
+			Name:        "path",
+			Aliases:     []string{},
+			Synopsis:    "path PROJECT",
+			Description: "print a project's local path",
+		},
+		{
+			Func:        cmdShow,
+			Name:        "show",
+			Aliases:     []string{"info"},
+			Synopsis:    "show PROJECT [...]",
+			Description: "print projects",
+		},
+		{
+			Func:        cmdCreate,
+			Name:        "create",
+			Aliases:     []string{},
+			Synopsis:    "create [options] NAME",
+			Description: "create a project",
+		},
+		{
+			Func:        cmdUpdate,
+			Name:        "update",
+			Aliases:     []string{"up"},
+			Synopsis:    "update [options] PROJECT",
+			Description: "change project fields",
+		},
+		{
+			Func:        cmdRename,
+			Name:        "rename",
+			Aliases:     []string{"mv"},
+			Synopsis:    "rename SRC DST",
+			Description: "change a project's short name",
+		},
+		{
+			Func:        cmdDelete,
+			Name:        "delete",
+			Aliases:     []string{"del", "rm"},
+			Synopsis:    "delete PROJECT [...]",
+			Description: "delete projects",
+		},
+		{
+			Func:        cmdImport,
+			Name:        "import",
+			Aliases:     []string{},
+			Synopsis:    "import [PATH [...]]",
+			Description: "import project(s) from JSON",
+		},
+		{
+			Func:        cmdCheckout,
+			Name:        "checkout",
+			Aliases:     []string{"co"},
+			Synopsis:    "checkout PROJECT [PATH]",
+			Description: "check out project from version control",
+		},
+	},
 }
 
-func cmdInit(cmd *subcmd, args []string) {
-	fset := cmd.NewFlagSet()
+func cmdInit(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	if fset.NArg() != 0 {
-		cmd.ExitSynopsis()
+		exitSynopsis(set, cmd)
 	}
 
 	if catalogPath == "" {
@@ -77,14 +121,15 @@ func cmdInit(cmd *subcmd, args []string) {
 	if _, err := catalog.Create(catalogPath); err != nil {
 		fail(err)
 	}
+	return nil
 }
 
-func cmdList(cmd *subcmd, args []string) {
-	fset := cmd.NewFlagSet()
+func cmdList(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	cat := requireCatalog()
 	if fset.NArg() != 0 {
-		cmd.ExitSynopsis()
+		exitSynopsis(set, cmd)
 	}
 
 	list, err := cat.List()
@@ -95,13 +140,14 @@ func cmdList(cmd *subcmd, args []string) {
 	for _, name := range list {
 		fmt.Println(name)
 	}
+	return nil
 }
 
-func cmdPath(cmd *subcmd, args []string) {
-	fset := cmd.NewFlagSet()
+func cmdPath(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
-		cmd.ExitSynopsis()
+		exitSynopsis(set, cmd)
 	}
 	cat := requireCatalog()
 
@@ -117,15 +163,16 @@ func cmdPath(cmd *subcmd, args []string) {
 		os.Exit(exitFailure)
 	}
 	fmt.Println(p)
+	return nil
 }
 
-func cmdShow(cmd *subcmd, args []string) {
-	fset := cmd.NewFlagSet()
+func cmdShow(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
 	jsonFormat := fset.Bool("json", false, "print project as JSON")
 	rfc3339Time := fset.Bool("rfc3339", false, "print dates as RFC3339")
 	parseFlags(fset, args)
 	if fset.NArg() == 0 {
-		cmd.ExitSynopsis()
+		exitSynopsis(set, cmd)
 	}
 	cat := requireCatalog()
 
@@ -162,6 +209,7 @@ func cmdShow(cmd *subcmd, args []string) {
 			os.Exit(exitFailure)
 		}
 	}
+	return nil
 }
 
 func showProject(proj *catalog.Project, fmtTime func(time.Time) string) {
@@ -204,8 +252,8 @@ func fmtRFC3339Time(t time.Time) string {
 	return t.Format(time.RFC3339)
 }
 
-func cmdImport(cmd *subcmd, args []string) {
-	fset := cmd.NewFlagSet()
+func cmdImport(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	cat := requireCatalog()
 
@@ -233,6 +281,7 @@ func cmdImport(cmd *subcmd, args []string) {
 			os.Exit(exitFailure)
 		}
 	}
+	return nil
 }
 
 func importProject(cat catalog.Catalog, r io.Reader) error {
@@ -245,7 +294,7 @@ func importProject(cat catalog.Catalog, r io.Reader) error {
 
 const rfc3339example = "2006-01-02T15:04:05-07:00"
 
-func cmdCreate(cmd *subcmd, args []string) {
+func cmdCreate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	now := time.Now()
 	proj := &catalog.Project{
 		VCS:         new(catalog.VCSInfo),
@@ -254,7 +303,7 @@ func cmdCreate(cmd *subcmd, args []string) {
 	}
 	var hostInfo catalog.HostInfo
 
-	fset := cmd.NewFlagSet()
+	fset := cmd.FlagSet(set)
 	fset.StringVar(&proj.ShortName, "shortname", "", "identifier for project (default is lowercased full name)")
 	fset.Var((*tagSetFlag)(&proj.Tags), "tags", "comma-separated tags to assign to the new project")
 	fset.StringVar(&hostInfo.Path, "path", "", "path of working copy")
@@ -264,7 +313,7 @@ func cmdCreate(cmd *subcmd, args []string) {
 	fset.Var((*timeFlag)(&proj.CreateTime), "created", "project creation date, formatted as RFC3339 ("+rfc3339example+")")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
-		cmd.ExitSynopsis()
+		exitSynopsis(set, cmd)
 	}
 	cat := requireCatalog()
 
@@ -301,9 +350,10 @@ func cmdCreate(cmd *subcmd, args []string) {
 	if err := cat.PutProject(proj); err != nil {
 		fail(err)
 	}
+	return nil
 }
 
-func cmdUpdate(cmd *subcmd, args []string) {
+func cmdUpdate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	var (
 		name        optStringFlag
 		tagsFlag    optTagSetFlag
@@ -316,7 +366,7 @@ func cmdUpdate(cmd *subcmd, args []string) {
 		vcsURL      optStringFlag
 	)
 
-	fset := cmd.NewFlagSet()
+	fset := cmd.FlagSet(set)
 	fset.Var(&name, "name", "human-readable name of project")
 	fset.Var(&tagsFlag, "tags", "set the project's tags, separated by commas. Can't be used with -addtags or -deltags.")
 	fset.Var(&addTagsFlag, "addtags", "add tags to the project, separated by commas. Can't be used with -tags.")
@@ -328,7 +378,7 @@ func cmdUpdate(cmd *subcmd, args []string) {
 	fset.Var(&vcsURL, "vcsurl", "project VCS URL")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
-		cmd.ExitSynopsis()
+		exitSynopsis(set, cmd)
 	}
 	if tagsFlag.present && (addTagsFlag.present || delTagsFlag.present) {
 		// -tags and -addtags/-deltags are mutally exclusive
@@ -400,6 +450,7 @@ func cmdUpdate(cmd *subcmd, args []string) {
 	if err := cat.PutProject(proj); err != nil {
 		fail(err)
 	}
+	return nil
 }
 
 func updateString(s *string, f *optStringFlag) {
@@ -408,11 +459,11 @@ func updateString(s *string, f *optStringFlag) {
 	}
 }
 
-func cmdRename(cmd *subcmd, args []string) {
-	fset := cmd.NewFlagSet()
+func cmdRename(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	if fset.NArg() != 2 {
-		cmd.ExitSynopsis()
+		exitSynopsis(set, cmd)
 	}
 	cat := requireCatalog()
 
@@ -425,13 +476,14 @@ func cmdRename(cmd *subcmd, args []string) {
 	if err := cat.PutProject(proj); err != nil {
 		fail(err)
 	}
+	return nil
 }
 
-func cmdDelete(cmd *subcmd, args []string) {
-	fset := cmd.NewFlagSet()
+func cmdDelete(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	if fset.NArg() == 0 {
-		cmd.ExitSynopsis()
+		exitSynopsis(set, cmd)
 	}
 	cat := requireCatalog()
 
@@ -445,15 +497,16 @@ func cmdDelete(cmd *subcmd, args []string) {
 	if failed {
 		os.Exit(exitFailure)
 	}
+	return nil
 }
 
-func cmdCheckout(cmd *subcmd, args []string) {
-	fset := cmd.NewFlagSet()
+func cmdCheckout(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
 	setPath := fset.Bool("setpath", true, "update the project's path to the new checkout")
 	overwritePath := fset.Bool("overwritepath", false, "change the project's path, even if there already is one")
 	parseFlags(fset, args)
 	if n := fset.NArg(); n == 0 || n > 2 {
-		cmd.ExitSynopsis()
+		exitSynopsis(set, cmd)
 	}
 	shortName := fset.Arg(0)
 	path := shortName
@@ -496,6 +549,7 @@ func cmdCheckout(cmd *subcmd, args []string) {
 			fail(err)
 		}
 	}
+	return nil
 }
 
 func requireCatalog() catalog.Catalog {

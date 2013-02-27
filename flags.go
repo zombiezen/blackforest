@@ -1,12 +1,14 @@
 package main
 
 import (
-	"bitbucket.org/zombiezen/glados/catalog"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
+
+	"bitbucket.org/zombiezen/glados/catalog"
+	"bitbucket.org/zombiezen/subcmd"
 )
 
 // environment variable names
@@ -21,63 +23,15 @@ var (
 	host        string = os.Getenv(HostEnv)
 )
 
-type subcmd struct {
-	Func        func(*subcmd, []string)
-	Name        string
-	Aliases     []string
-	Synopsis    string
-	Description string
-}
-
-func (cmd *subcmd) NewFlagSet() *flag.FlagSet {
-	fset := flag.NewFlagSet(cmd.Name, flag.ContinueOnError)
-	globalFlags(fset)
-	fset.Usage = func() {
-		cmd.PrintUsage(fset)
-	}
-	fset.SetOutput(os.Stdout)
-	return fset
-}
-
-// Matches returns whether name is one of the recognized forms of cmd.
-func (cmd *subcmd) Matches(name string) bool {
-	if name == cmd.Name {
-		return true
-	}
-	for _, a := range cmd.Aliases {
-		if name == a {
-			return true
-		}
-	}
-	return false
-}
-
-func (cmd *subcmd) PrintUsage(fset *flag.FlagSet) {
-	if cmd.Synopsis != "" {
-		fmt.Printf("glados %s\n\n", cmd.Synopsis)
-	} else {
-		fmt.Printf("Usage of %s:\n\n", cmd.Name)
-	}
-	if cmd.Description != "" {
-		fmt.Print(cmd.Description + "\n\n")
-	}
-	if len(cmd.Aliases) > 0 {
-		fmt.Print("aliases: " + strings.Join(cmd.Aliases, ", ") + "\n\n")
-	}
-	fmt.Print("options:\n\n")
-	fset.PrintDefaults()
-}
-
-func (cmd *subcmd) ExitSynopsis() {
-	fmt.Fprintln(os.Stderr, "usage: glados", cmd.Synopsis)
-	os.Exit(exitUsage)
-}
-
 func globalFlags(fset *flag.FlagSet) {
 	fset.StringVar(&catalogPath, "catalog", catalogPath, "path to catalog directory (overrides the "+CatalogPathEnv+" environment variable)")
 	fset.StringVar(&host, "host", host, "key for this host (overrides the "+HostEnv+" environment variable)")
 }
 
+func exitSynopsis(set *subcmd.Set, cmd *subcmd.Command) {
+	cmd.PrintSynopsis(set)
+	os.Exit(exitUsage)
+}
 func fail(args ...interface{}) {
 	fmt.Fprintln(os.Stderr, args...)
 	os.Exit(exitFailure)
@@ -89,7 +43,7 @@ func failf(f string, args ...interface{}) {
 }
 
 func parseFlags(fset *flag.FlagSet, args []string) {
-	if err := fset.Parse(args); err == flag.ErrHelp {
+	if err := fset.Parse(args[1:]); err == flag.ErrHelp {
 		os.Exit(exitSuccess)
 	} else if err != nil {
 		os.Exit(exitUsage)
