@@ -34,13 +34,6 @@ func parseFlags(fset *flag.FlagSet, args []string) {
 	}
 }
 
-// exit codes
-const (
-	exitSuccess = 0
-	exitFailure = 1
-	exitUsage   = 2
-)
-
 type optStringFlag struct {
 	s       string
 	present bool

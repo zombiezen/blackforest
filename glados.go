@@ -94,3 +94,10 @@ type usageError string
 func (e usageError) Error() string {
 	return string(e)
 }
+
+// exit codes
+const (
+	exitSuccess = 0
+	exitFailure = 1
+	exitUsage   = 64
+)
