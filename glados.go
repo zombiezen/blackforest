@@ -58,6 +58,9 @@ var (
 	errCatalogPathNotSet   = errors.New(CatalogPathEnv + " not set")
 	errHostNotSet          = errors.New(HostEnv + " not set")
 	errHostNotSetPathGiven = errors.New("-path given and " + HostEnv + " not set")
+
+	errFailed         error = exitError(exitFailure)
+	errTagsMutexFlags error = usageError("cannot use -tags flag with -addtags/-deltags")
 )
 
 type projectHasPathError struct {
@@ -86,8 +89,6 @@ type exitError int
 func (e exitError) Error() string {
 	return fmt.Sprint("exit code", int(e))
 }
-
-var errFailed error = exitError(exitFailure)
 
 type usageError string
 
