@@ -62,6 +62,13 @@ var commandSet = subcmd.Set{
 			Description: "change project fields",
 		},
 		{
+			Func:        cmdDescribe,
+			Name:        "describe",
+			Aliases:     []string{"desc"},
+			Synopsis:    "describe PROJECT",
+			Description: "edit project description",
+		},
+		{
 			Func:        cmdRename,
 			Name:        "rename",
 			Aliases:     []string{"mv"},
@@ -458,4 +465,30 @@ func cmdCheckout(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		}
 	}
 	return nil
+}
+
+func cmdDescribe(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
+	parseFlags(fset, args)
+	if fset.NArg() != 1 {
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
+	}
+	shortName := fset.Arg(0)
+	cat := requireCatalog()
+
+	proj, err := cat.GetProject(shortName)
+	if err != nil {
+		return err
+	}
+	desc := proj.Description
+	if desc, err = runEditor(desc); err != nil {
+		return err
+	}
+	if desc == proj.Description {
+		// no change
+		return nil
+	}
+	desc = strings.TrimRight(desc, "\r\n")
+	return cat.PutProject(proj)
 }
