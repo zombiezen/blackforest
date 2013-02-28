@@ -9,21 +9,34 @@ import (
 	"bitbucket.org/zombiezen/glados/catalog"
 )
 
-// environment variable names
+// Environment variable names
 const (
 	CatalogPathEnv = "GLADOS_PATH"
 	HostEnv        = "GLADOS_HOST"
+	EditorEnv      = "GLADOS_EDITOR"
+
+	globalEditorEnv = "EDITOR"
 )
 
-// global flags
+// Global flags
 var (
 	catalogPath string = os.Getenv(CatalogPathEnv)
 	host        string = os.Getenv(HostEnv)
+	editor      string = "vi"
 )
+
+func init() {
+	if e := os.Getenv(EditorEnv); e != "" {
+		editor = e
+	} else if e := os.Getenv(globalEditorEnv); e != "" {
+		editor = e
+	}
+}
 
 func globalFlags(fset *flag.FlagSet) {
 	fset.StringVar(&catalogPath, "catalog", catalogPath, "path to catalog directory (overrides the "+CatalogPathEnv+" environment variable)")
 	fset.StringVar(&host, "host", host, "key for this host (overrides the "+HostEnv+" environment variable)")
+	fset.StringVar(&editor, "editor", editor, "text editor (overrides the "+EditorEnv+" environment variable)")
 }
 
 func parseFlags(fset *flag.FlagSet, args []string) {
