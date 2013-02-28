@@ -2,13 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"bitbucket.org/zombiezen/glados/catalog"
-	"bitbucket.org/zombiezen/subcmd"
 )
 
 // environment variable names
@@ -28,25 +26,11 @@ func globalFlags(fset *flag.FlagSet) {
 	fset.StringVar(&host, "host", host, "key for this host (overrides the "+HostEnv+" environment variable)")
 }
 
-func exitSynopsis(set *subcmd.Set, cmd *subcmd.Command) {
-	cmd.PrintSynopsis(set)
-	os.Exit(exitUsage)
-}
-func fail(args ...interface{}) {
-	fmt.Fprintln(os.Stderr, args...)
-	os.Exit(exitFailure)
-}
-
-func failf(f string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, f, args...)
-	os.Exit(exitFailure)
-}
-
 func parseFlags(fset *flag.FlagSet, args []string) {
 	if err := fset.Parse(args[1:]); err == flag.ErrHelp {
-		os.Exit(exitSuccess)
+		panic(err)
 	} else if err != nil {
-		os.Exit(exitUsage)
+		panic(exitError(exitUsage))
 	}
 }
 

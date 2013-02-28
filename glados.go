@@ -21,13 +21,19 @@ import (
 func main() {
 	if err := commandSet.Do(os.Args[1:]); err == nil {
 		os.Exit(exitSuccess)
+	} else if code, ok := err.(exitError); ok {
+		os.Exit(int(code))
 	} else if err == flag.ErrHelp {
 		os.Exit(exitUsage)
 	} else if _, ok := err.(subcmd.CommandError); ok {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(exitUsage)
+	} else if _, ok := err.(usageError); ok {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(exitUsage)
 	} else {
-		fail(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(exitFailure)
 	}
 }
 
@@ -108,18 +114,41 @@ var commandSet = subcmd.Set{
 	},
 }
 
+func init() {
+	for i := range commandSet.Commands {
+		c := &commandSet.Commands[i]
+		c.Func = catchCmdPanics(c.Func)
+	}
+}
+
+func catchCmdPanics(f subcmd.Func) subcmd.Func {
+	return func(set *subcmd.Set, cmd *subcmd.Command, args []string) (err error) {
+		defer func() {
+			r := recover()
+			if e, ok := r.(error); ok {
+				err = e
+			} else if r != nil {
+				panic(r)
+			}
+		}()
+		err = f(set, cmd, args)
+		return
+	}
+}
+
 func cmdInit(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	if fset.NArg() != 0 {
-		exitSynopsis(set, cmd)
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
 	}
 
 	if catalogPath == "" {
-		fail(CatalogPathEnv + " not set")
+		return errCatalogPathNotSet
 	}
 	if _, err := catalog.Create(catalogPath); err != nil {
-		fail(err)
+		return err
 	}
 	return nil
 }
@@ -129,12 +158,13 @@ func cmdList(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	parseFlags(fset, args)
 	cat := requireCatalog()
 	if fset.NArg() != 0 {
-		exitSynopsis(set, cmd)
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
 	}
 
 	list, err := cat.List()
 	if err != nil {
-		fail(err)
+		return err
 	}
 	sort.Strings(list)
 	for _, name := range list {
@@ -147,20 +177,21 @@ func cmdPath(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
-		exitSynopsis(set, cmd)
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
 	}
 	cat := requireCatalog()
 
 	if host == "" {
-		fail(HostEnv + " not set")
+		return errHostNotSet
 	}
 	proj, err := cat.GetProject(fset.Arg(0))
 	if err != nil {
-		fail(err)
+		return err
 	}
 	p := proj.Path(host)
 	if p == "" {
-		os.Exit(exitFailure)
+		return errFailed
 	}
 	fmt.Println(p)
 	return nil
@@ -172,7 +203,8 @@ func cmdShow(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	rfc3339Time := fset.Bool("rfc3339", false, "print dates as RFC3339")
 	parseFlags(fset, args)
 	if fset.NArg() == 0 {
-		exitSynopsis(set, cmd)
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
 	}
 	cat := requireCatalog()
 
@@ -181,12 +213,12 @@ func cmdShow(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		for _, shortName := range fset.Args() {
 			proj, err := cat.GetProject(shortName)
 			if err != nil {
-				fail(err)
+				return err
 			}
 			projects = append(projects, proj)
 		}
 		if err := json.NewEncoder(os.Stdout).Encode(projects); err != nil {
-			fail(err)
+			return err
 		}
 	} else {
 		fmtTime := fmtSimpleTime
@@ -206,7 +238,7 @@ func cmdShow(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 			}
 		}
 		if failed {
-			os.Exit(exitFailure)
+			return errFailed
 		}
 	}
 	return nil
@@ -259,7 +291,7 @@ func cmdImport(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 
 	if fset.NArg() == 0 {
 		if err := importProject(cat, os.Stdin); err != nil {
-			fail(err)
+			return err
 		}
 	} else {
 		failed := false
@@ -278,7 +310,7 @@ func cmdImport(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 			}
 		}
 		if failed {
-			os.Exit(exitFailure)
+			return errFailed
 		}
 	}
 	return nil
@@ -313,19 +345,20 @@ func cmdCreate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset.Var((*timeFlag)(&proj.CreateTime), "created", "project creation date, formatted as RFC3339 ("+rfc3339example+")")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
-		exitSynopsis(set, cmd)
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
 	}
 	cat := requireCatalog()
 
 	name := strings.TrimSpace(fset.Arg(0))
 	if len(name) == 0 {
-		fail("empty name")
+		return errEmptyName
 	}
 	proj.Name = name
 	proj.Tags.Unique()
 	id, err := catalog.GenerateID()
 	if err != nil {
-		fail(err)
+		return err
 	}
 	proj.ID = id
 	if proj.ShortName == "" {
@@ -334,21 +367,21 @@ func cmdCreate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	if proj.VCS.Type == "" {
 		proj.VCS = nil
 	} else if !isValidVCSType(proj.VCS.Type) {
-		failf("%q is not a valid -vcs\nvalid choices are: %s\n", proj.VCS.Type, validVCSText)
+		return badVCSError(proj.VCS.Type)
 	}
 	if hostInfo.Path != "" {
 		absPath, err := filepath.Abs(filepath.Clean(hostInfo.Path))
 		if err != nil {
-			fail(err)
+			return err
 		}
 		hostInfo.Path = absPath
 		if host == "" {
-			fail("-path given and " + HostEnv + " not set")
+			return errHostNotSetPathGiven
 		}
 		proj.PerHost = map[string]*catalog.HostInfo{host: &hostInfo}
 	}
 	if err := cat.PutProject(proj); err != nil {
-		fail(err)
+		return err
 	}
 	return nil
 }
@@ -378,19 +411,19 @@ func cmdUpdate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset.Var(&vcsURL, "vcsurl", "project VCS URL")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
-		exitSynopsis(set, cmd)
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
 	}
 	if tagsFlag.present && (addTagsFlag.present || delTagsFlag.present) {
 		// -tags and -addtags/-deltags are mutally exclusive
-		fmt.Fprintln(os.Stderr, "cannot use -tags flag with -addtags or -deltags")
-		os.Exit(exitUsage)
+		return usageError("cannot use -tags flag with -addtags -deltags")
 	}
 	cat := requireCatalog()
 
 	shortName := fset.Arg(0)
 	proj, err := cat.GetProject(shortName)
 	if err != nil {
-		fail(err)
+		return err
 	}
 
 	updateString(&proj.Name, &name)
@@ -409,23 +442,23 @@ func cmdUpdate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 			}
 			proj.VCS.Type = vt
 		default:
-			failf("%q is not a valid -vcs\nvalid choices are: %s\n", vt, validVCSText)
+			return badVCSError(vt)
 		}
 	}
 	if vcsURL.present {
 		if proj.VCS == nil {
-			fail("-vcsurl given, but project has no VCS")
+			return errDanglingVCSURL
 		}
 		proj.VCS.URL = vcsURL.s
 	}
 	if path.present {
 		if host == "" {
-			fail("-path given, but " + HostEnv + " not set")
+			return errHostNotSetPathGiven
 		}
 		if path.s != "" {
 			var err error
 			if path.s, err = filepath.Abs(filepath.Clean(path.s)); err != nil {
-				fail(err)
+				return err
 			}
 		}
 		proj.SetPath(host, path.s)
@@ -448,7 +481,7 @@ func cmdUpdate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	}
 
 	if err := cat.PutProject(proj); err != nil {
-		fail(err)
+		return err
 	}
 	return nil
 }
@@ -463,18 +496,19 @@ func cmdRename(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	if fset.NArg() != 2 {
-		exitSynopsis(set, cmd)
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
 	}
 	cat := requireCatalog()
 
 	src, dst := fset.Arg(0), fset.Arg(1)
 	proj, err := cat.GetProject(src)
 	if err != nil {
-		fail(err)
+		return err
 	}
 	proj.ShortName = dst
 	if err := cat.PutProject(proj); err != nil {
-		fail(err)
+		return err
 	}
 	return nil
 }
@@ -483,7 +517,8 @@ func cmdDelete(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)
 	if fset.NArg() == 0 {
-		exitSynopsis(set, cmd)
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
 	}
 	cat := requireCatalog()
 
@@ -495,7 +530,7 @@ func cmdDelete(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		}
 	}
 	if failed {
-		os.Exit(exitFailure)
+		return errFailed
 	}
 	return nil
 }
@@ -506,7 +541,8 @@ func cmdCheckout(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	overwritePath := fset.Bool("overwritepath", false, "change the project's path, even if there already is one")
 	parseFlags(fset, args)
 	if n := fset.NArg(); n == 0 || n > 2 {
-		exitSynopsis(set, cmd)
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
 	}
 	shortName := fset.Arg(0)
 	path := shortName
@@ -515,38 +551,38 @@ func cmdCheckout(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	}
 	absPath, err := filepath.Abs(filepath.Clean(path))
 	if err != nil {
-		fail(err)
+		return err
 	}
 	if *setPath && host == "" {
-		fail(HostEnv + " not set")
+		return errHostNotSet
 	}
 	cat := requireCatalog()
 
 	proj, err := cat.GetProject(shortName)
 	if err != nil {
-		fail(err)
+		return err
 	}
 	if proj.VCS == nil || proj.VCS.URL == "" {
-		failf("project %s has no VCS URL", shortName)
+		return noVCSURLError(shortName)
 	}
 	if p := proj.Path(host); *setPath && p != "" && !*overwritePath {
-		failf("project already has path: %s\n(use -overwritepath to force)\n", p)
+		return &projectHasPathError{ShortName: proj.ShortName, Path: p}
 	}
 
 	var vc vcs.VCS
-	switch proj.VCS.Type {
+	switch vt := proj.VCS.Type; vt {
 	case catalog.Mercurial:
 		vc = new(vcs.Mercurial)
 	default:
-		fail(errUnhandledVCS)
+		return badVCSError(vt)
 	}
 	if _, err := vc.Checkout(proj.VCS.URL, absPath); err != nil {
-		fail(err)
+		return err
 	}
 	if *setPath {
 		proj.SetPath(host, absPath)
 		if err := cat.PutProject(proj); err != nil {
-			fail(err)
+			return err
 		}
 	}
 	return nil
@@ -554,7 +590,7 @@ func cmdCheckout(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 
 func requireCatalog() catalog.Catalog {
 	if catalogPath == "" {
-		fail(CatalogPathEnv + " not set")
+		panic(errCatalogPathNotSet)
 	}
 
 	// TODO(light): check for other VCSs
@@ -568,9 +604,50 @@ func requireCatalog() catalog.Catalog {
 
 	cat, err := catalog.Open(catalogPath, v)
 	if err != nil {
-		fail(err)
+		panic(err)
 	}
 	return cat
 }
 
-var errUnhandledVCS = errors.New("unhandled VCS")
+var (
+	errEmptyName           = errors.New("empty name")
+	errDanglingVCSURL      = errors.New("-vcsurl given, but project has no VCS")
+	errCatalogPathNotSet   = errors.New(CatalogPathEnv + " not set")
+	errHostNotSet          = errors.New(HostEnv + " not set")
+	errHostNotSetPathGiven = errors.New("-path given and " + HostEnv + " not set")
+)
+
+type projectHasPathError struct {
+	ShortName string
+	Path      string
+}
+
+func (e *projectHasPathError) Error() string {
+	return string(e.ShortName) + " already has path: " + e.Path + "\n(use -overwritepath to force)"
+}
+
+type noVCSURLError string
+
+func (e noVCSURLError) Error() string {
+	return "project " + string(e) + " has no VCS URL"
+}
+
+type badVCSError string
+
+func (e badVCSError) Error() string {
+	return string(e) + " is not a valid VCS name\nvalid choices are: " + validVCSText
+}
+
+type exitError int
+
+func (e exitError) Error() string {
+	return fmt.Sprint("exit code", int(e))
+}
+
+var errFailed error = exitError(exitFailure)
+
+type usageError string
+
+func (e usageError) Error() string {
+	return string(e)
+}
