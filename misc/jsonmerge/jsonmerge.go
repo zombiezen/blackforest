@@ -5,11 +5,48 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
+	"os"
 	"reflect"
 )
 
 func main() {
 	flag.Parse()
+	if flag.NArg() != 3 {
+		fmt.Fprintln(os.Stderr, "usage: jsonmerge MYFILE OLDFILE YOURFILE")
+		os.Exit(exitUsage)
+	}
+	objA, err := readJSON(flag.Arg(0))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(exitFailure)
+	}
+	objB, err := readJSON(flag.Arg(2))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(exitFailure)
+	}
+	objOld, err := readJSON(flag.Arg(1))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(exitFailure)
+	}
+	mergeObj := merge(objOld, objA, objB)
+	if err := json.NewEncoder(os.Stdout).Encode(mergeObj); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(exitFailure)
+	}
+}
+
+func readJSON(path string) (interface{}, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var v interface{}
+	err = json.NewDecoder(f).Decode(&v)
+	return v, err
 }
 
 func merge(old, a, b interface{}) interface{} {
@@ -24,7 +61,7 @@ func merge(old, a, b interface{}) interface{} {
 		} else if reflect.DeepEqual(b, old) {
 			return a
 		}
-		return mergeConflict{a, b}
+		return &mergeConflict{a, b}
 	}
 	if a == nil {
 		return nil
@@ -69,7 +106,7 @@ func merge(old, a, b interface{}) interface{} {
 			}
 			oldIdx, bIdx := mapIndex(vold, k), mapIndex(vb, k)
 			if !reflect.DeepEqual(oldIdx, bIdx) {
-				result[k] = mergeConflict{nil, bIdx}
+				result[k] = &mergeConflict{nil, bIdx}
 			}
 		}
 		for k := range remB {
@@ -78,12 +115,12 @@ func merge(old, a, b interface{}) interface{} {
 			}
 			oldIdx, aIdx := mapIndex(vold, k), mapIndex(va, k)
 			if !reflect.DeepEqual(oldIdx, aIdx) {
-				result[k] = mergeConflict{aIdx, nil}
+				result[k] = &mergeConflict{aIdx, nil}
 			}
 		}
 		return result
 	}
-	return mergeConflict{a, b}
+	return &mergeConflict{a, b}
 }
 
 func mapIndex(m reflect.Value, k string) interface{} {
@@ -166,9 +203,9 @@ type mergeConflict struct {
 
 func (c *mergeConflict) MarshalJSON() ([]byte, error) {
 	const (
-		leftMarker  = "<<<<<<<"
-		splitMarker = "======="
-		rightMarker = ">>>>>>>"
+		leftMarker  = `{"CONFLICT":null,"A":`
+		splitMarker = `,"B":`
+		rightMarker = `}`
 	)
 	a, err := json.Marshal(c.A)
 	if err != nil {
