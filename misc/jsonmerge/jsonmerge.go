@@ -4,6 +4,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"reflect"
 )
 
 func main() {
@@ -11,52 +12,48 @@ func main() {
 }
 
 func merge(old, a, b interface{}) interface{} {
-	if a == nil {
-		switch {
-		case b == nil:
-			return nil
-		case old == nil:
+	if reflect.DeepEqual(a, b) {
+		return a
+	}
+	vold, va, vb := reflect.ValueOf(old), reflect.ValueOf(a), reflect.ValueOf(b)
+	told, ta, tb := vold.Type(), va.Type(), vb.Type()
+	if !isSameType(ta, tb) {
+		if reflect.DeepEqual(a, old) {
 			return b
-		default:
-			return mergeConflict{a, b}
-		}
-	}
-	switch a := a.(type) {
-	case bool:
-		if b, ok := b.(bool); ok {
-			if a == b {
-				return a
-			} else if old, ok := old.(bool); ok && a == old {
-				return b
-			} else if ok && b == old {
-				return a
-			}
-		}
-		return mergeConflict{a, b}
-	case float64:
-		if b, ok := b.(float64); ok {
-			if a == b {
-				return a
-			} else if old, ok := old.(float64); ok && a == old {
-				return b
-			} else if ok && b == old {
-				return a
-			}
-		}
-		return mergeConflict{a, b}
-	case string:
-		if b, ok := b.(string); ok {
-			if a == b {
-				return a
-			} else if old, ok := old.(string); ok && a == old {
-				return b
-			} else if ok && b == old {
-				return a
-			}
+		} else if reflect.DeepEqual(b, old) {
+			return a
 		}
 		return mergeConflict{a, b}
 	}
-	return nil
+	if a == nil {
+		return nil
+	}
+	switch ta.Kind() {
+	case reflect.Bool, reflect.String, reflect.Float64:
+		if isSameType(ta, told) {
+			if a == old {
+				return b
+			} else if b == old {
+				return a
+			}
+		}
+	case reflect.Slice:
+		if isSameType(ta, told) {
+			if reflect.DeepEqual(a, old) {
+				return b
+			} else if reflect.DeepEqual(b, old) {
+				return a
+			}
+		}
+	case reflect.Map:
+		// TODO(light)
+	}
+	return mergeConflict{a, b}
+}
+
+// isSameType reports whether t1 and t2 can be treated as the same type.
+func isSameType(t1, t2 reflect.Type) bool {
+	return t1.Kind() == t2.Kind()
 }
 
 // A mergeConflict is a token inserted into a JSON document that indicates a
