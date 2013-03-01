@@ -47,11 +47,54 @@ func merge(old, a, b interface{}) interface{} {
 			}
 		}
 	case reflect.Map:
-		ka, kb := getStringKeys(va), getStringKeys(vb)
-		// TODO(light)
-		_, _ = ka, kb
+		kold, ka, kb := make(StringSet, 0), getStringKeys(va), getStringKeys(vb)
+		if told.Kind() == reflect.Map {
+			kold = getStringKeys(vold)
+		}
+		addA, remA := getAddRemoveKeys(kold, ka)
+		addB, remB := getAddRemoveKeys(kold, kb)
+		result := make(map[string]interface{})
+		for k := range ka.Intersect(kb) {
+			result[k] = merge(mapIndex(vold, k), mapIndex(va, k), mapIndex(vb, k))
+		}
+		for k := range addA.Subtract(kb) {
+			result[k] = mapIndex(va, k)
+		}
+		for k := range addB.Subtract(ka) {
+			result[k] = mapIndex(vb, k)
+		}
+		for k := range remA {
+			if _, ok := kb[k]; !ok {
+				continue
+			}
+			oldIdx, bIdx := mapIndex(vold, k), mapIndex(vb, k)
+			if !reflect.DeepEqual(oldIdx, bIdx) {
+				result[k] = mergeConflict{nil, bIdx}
+			}
+		}
+		for k := range remB {
+			if _, ok := ka[k]; !ok {
+				continue
+			}
+			oldIdx, aIdx := mapIndex(vold, k), mapIndex(va, k)
+			if !reflect.DeepEqual(oldIdx, aIdx) {
+				result[k] = mergeConflict{aIdx, nil}
+			}
+		}
+		return result
 	}
 	return mergeConflict{a, b}
+}
+
+func mapIndex(m reflect.Value, k string) interface{} {
+	if m.Type().Kind() != reflect.Map {
+		return nil
+	}
+	v := m.MapIndex(reflect.ValueOf(k))
+	if !v.IsValid() {
+		return nil
+	}
+	return v.Interface()
 }
 
 func getStringKeys(v reflect.Value) StringSet {
@@ -67,6 +110,10 @@ func getStringKeys(v reflect.Value) StringSet {
 	return k
 }
 
+func getAddRemoveKeys(kold, k StringSet) (added, removed StringSet) {
+	return k.Subtract(kold), kold.Subtract(k)
+}
+
 type StringSet map[string]struct{}
 
 func NewStringSet(s []string) StringSet {
@@ -79,6 +126,16 @@ func NewStringSet(s []string) StringSet {
 
 func (ss StringSet) Add(s string) {
 	ss[s] = struct{}{}
+}
+
+func (s1 StringSet) Subtract(s2 StringSet) StringSet {
+	result := make(StringSet, len(s1))
+	for k := range s1 {
+		if _, ok := s2[k]; !ok {
+			result.Add(k)
+		}
+	}
+	return result
 }
 
 func (s1 StringSet) Intersect(s2 StringSet) StringSet {
