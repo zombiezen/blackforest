@@ -11,7 +11,51 @@ func main() {
 }
 
 func merge(old, a, b interface{}) interface{} {
-	// TODO(light)
+	if a == nil {
+		switch {
+		case b == nil:
+			return nil
+		case old == nil:
+			return b
+		default:
+			return mergeConflict{a, b}
+		}
+	}
+	switch a := a.(type) {
+	case bool:
+		if b, ok := b.(bool); ok {
+			if a == b {
+				return a
+			} else if old, ok := old.(bool); ok && a == old {
+				return b
+			} else if ok && b == old {
+				return a
+			}
+		}
+		return mergeConflict{a, b}
+	case float64:
+		if b, ok := b.(float64); ok {
+			if a == b {
+				return a
+			} else if old, ok := old.(float64); ok && a == old {
+				return b
+			} else if ok && b == old {
+				return a
+			}
+		}
+		return mergeConflict{a, b}
+	case string:
+		if b, ok := b.(string); ok {
+			if a == b {
+				return a
+			} else if old, ok := old.(string); ok && a == old {
+				return b
+			} else if ok && b == old {
+				return a
+			}
+		}
+		return mergeConflict{a, b}
+	}
 	return nil
 }
 
