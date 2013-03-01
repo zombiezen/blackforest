@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"reflect"
 )
@@ -46,9 +47,53 @@ func merge(old, a, b interface{}) interface{} {
 			}
 		}
 	case reflect.Map:
+		ka, kb := getStringKeys(va), getStringKeys(vb)
 		// TODO(light)
+		_, _ = ka, kb
 	}
 	return mergeConflict{a, b}
+}
+
+func getStringKeys(v reflect.Value) StringSet {
+	t := v.Type()
+	if t.Key().Kind() != reflect.String {
+		panic(errors.New("key type not a string"))
+	}
+	kv := v.MapKeys()
+	k := make(StringSet, len(kv))
+	for i := range kv {
+		k.Add(kv[i].String())
+	}
+	return k
+}
+
+type StringSet map[string]struct{}
+
+func NewStringSet(s []string) StringSet {
+	set := make(StringSet, len(s))
+	for _, ss := range s {
+		set.Add(ss)
+	}
+	return set
+}
+
+func (ss StringSet) Add(s string) {
+	ss[s] = struct{}{}
+}
+
+func (s1 StringSet) Intersect(s2 StringSet) StringSet {
+	var result StringSet
+	if len(s1) < len(s2) {
+		result = make(StringSet, len(s1))
+	} else {
+		result = make(StringSet, len(s2))
+	}
+	for k := range s1 {
+		if _, ok := s2[k]; ok {
+			result.Add(k)
+		}
+	}
+	return result
 }
 
 // isSameType reports whether t1 and t2 can be treated as the same type.
