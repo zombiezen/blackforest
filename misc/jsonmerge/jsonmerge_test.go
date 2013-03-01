@@ -57,6 +57,12 @@ func TestMerge(t *testing.T) {
 			map[string]interface{}{"a": mergeConflict{1.0, 2.0}},
 		},
 		{
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 2.0},
+			map[string]interface{}{"a": 1.0},
+			map[string]interface{}{"a": mergeConflict{2.0, 1.0}},
+		},
+		{
 			map[string]interface{}{},
 			map[string]interface{}{"a": 0.0},
 			map[string]interface{}{"a": 0.0},
@@ -69,9 +75,21 @@ func TestMerge(t *testing.T) {
 			map[string]interface{}{"a": 0.0},
 		},
 		{
+			map[string]interface{}{},
+			map[string]interface{}{},
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 0.0},
+		},
+		{
 			map[string]interface{}{"a": 0.0},
 			map[string]interface{}{},
 			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{},
+		},
+		{
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{},
 			map[string]interface{}{},
 		},
 		{
@@ -79,6 +97,12 @@ func TestMerge(t *testing.T) {
 			map[string]interface{}{},
 			map[string]interface{}{"a": 1.0},
 			map[string]interface{}{"a": mergeConflict{nil, 1.0}},
+		},
+		{
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 1.0},
+			map[string]interface{}{},
+			map[string]interface{}{"a": mergeConflict{1.0, nil}},
 		},
 	}
 	for _, test := range tests {
