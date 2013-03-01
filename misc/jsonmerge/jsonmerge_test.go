@@ -1,30 +1,84 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 )
 
-func TestMergeString(t *testing.T) {
+func TestMerge(t *testing.T) {
 	tests := []struct {
-		Old, A, B string
-		Result    string
-		Ok        bool
+		Old, A, B interface{}
+		Result    interface{}
 	}{
-		{"", "", "", "", true},
-		{"a", "a", "a", "a", true},
-		{"a", "b", "b", "b", true},
-		{"a", "b", "a", "b", true},
-		{"a", "a", "b", "b", true},
-		{"a", "b", "c", "a", false},
-		{"a", "c", "b", "a", false},
+		{nil, nil, nil, nil},
+		{"", "", "", ""},
+		{false, false, false, false},
+		{false, true, true, true},
+		{true, false, false, false},
+		{true, true, true, true},
+		{1.0, 1.0, 1.0, 1.0},
+		{1.0, 2.0, 2.0, 2.0},
+		{"a", "a", "a", "a"},
+		{"a", "b", "b", "b"},
+		{"a", "b", "a", "b"},
+		{"a", "a", "b", "b"},
+		{"a", "b", "c", mergeConflict{"b", "c"}},
+		{"a", "c", "b", mergeConflict{"c", "b"}},
+		{"foo", "foo", 42.0, 42.0},
+		{"foo", "bar", 42.0, mergeConflict{"bar", 42.0}},
+		{
+			map[string]interface{}{},
+			map[string]interface{}{},
+			map[string]interface{}{},
+			map[string]interface{}{},
+		},
+		{
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 0.0},
+		},
+		{
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 1.0},
+			map[string]interface{}{"a": 1.0},
+			map[string]interface{}{"a": 1.0},
+		},
+		{
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 1.0},
+			map[string]interface{}{"a": 2.0},
+			map[string]interface{}{"a": mergeConflict{1.0, 2.0}},
+		},
+		{
+			map[string]interface{}{},
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{"a": 0.0},
+		},
+		{
+			map[string]interface{}{},
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{},
+			map[string]interface{}{"a": 0.0},
+		},
+		{
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{},
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{},
+		},
+		{
+			map[string]interface{}{"a": 0.0},
+			map[string]interface{}{},
+			map[string]interface{}{"a": 1.0},
+			map[string]interface{}{"a": mergeConflict{nil, 1.0}},
+		},
 	}
 	for _, test := range tests {
-		m, ok := mergeString(test.Old, test.A, test.B)
-		if m != test.Result {
-			t.Errorf("mergeString(%q, %q, %q) = %q; want %q", test.Old, test.A, test.B, m, test.Result)
-		}
-		if ok != test.Ok {
-			t.Errorf("mergeString(%q, %q, %q) ok = %t; want %t", test.Old, test.A, test.B, ok, test.Ok)
+		m := merge(test.Old, test.A, test.B)
+		if !reflect.DeepEqual(m, test.Result) {
+			t.Errorf("merge(%v, %v, %v) = %v; want %v", test.Old, test.A, test.B, m, test.Result)
 		}
 	}
 }

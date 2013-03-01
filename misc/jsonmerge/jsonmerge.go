@@ -10,16 +10,9 @@ func main() {
 	flag.Parse()
 }
 
-func mergeString(old, a, b string) (merged string, ok bool) {
-	switch {
-	case a == b:
-		return a, true
-	case a != b && b == old:
-		return a, true
-	case a != b && a == old:
-		return b, true
-	}
-	return old, false
+func merge(old, a, b interface{}) interface{} {
+	// TODO(light)
+	return nil
 }
 
 // A mergeConflict is a token inserted into a JSON document that indicates a
