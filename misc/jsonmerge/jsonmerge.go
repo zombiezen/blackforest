@@ -69,7 +69,7 @@ func merge(old, a, b interface{}) interface{} {
 		return a
 	}
 	vold, va, vb := reflect.ValueOf(old), reflect.ValueOf(a), reflect.ValueOf(b)
-	told, ta, tb := vold.Type(), va.Type(), vb.Type()
+	told, ta, tb := reflect.TypeOf(old), reflect.TypeOf(a), reflect.TypeOf(b)
 	if !isSameType(ta, tb) {
 		if reflect.DeepEqual(a, old) {
 			return b
@@ -100,7 +100,7 @@ func merge(old, a, b interface{}) interface{} {
 		}
 	case reflect.Map:
 		kold, ka, kb := make(StringSet, 0), getStringKeys(va), getStringKeys(vb)
-		if told.Kind() == reflect.Map {
+		if told != nil && told.Kind() == reflect.Map {
 			kold = getStringKeys(vold)
 		}
 		addA, remA := getAddRemoveKeys(kold, ka)
@@ -139,7 +139,7 @@ func merge(old, a, b interface{}) interface{} {
 }
 
 func mapIndex(m reflect.Value, k string) interface{} {
-	if m.Type().Kind() != reflect.Map {
+	if !m.IsValid() || m.Type().Kind() != reflect.Map {
 		return nil
 	}
 	v := m.MapIndex(reflect.ValueOf(k))
@@ -207,6 +207,11 @@ func (s1 StringSet) Intersect(s2 StringSet) StringSet {
 
 // isSameType reports whether t1 and t2 can be treated as the same type.
 func isSameType(t1, t2 reflect.Type) bool {
+	if t1 == nil && t2 == nil {
+		return true
+	} else if t1 == nil || t2 == nil {
+		return false
+	}
 	return t1.Kind() == t2.Kind()
 }
 
