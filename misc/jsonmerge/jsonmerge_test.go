@@ -25,7 +25,9 @@ func TestMerge(t *testing.T) {
 		{"a", "b", "c", mergeConflict{"b", "c"}},
 		{"a", "c", "b", mergeConflict{"c", "b"}},
 		{"foo", "foo", 42.0, 42.0},
+		{"foo", 42.0, "foo", 42.0},
 		{"foo", "bar", 42.0, mergeConflict{"bar", 42.0}},
+		{"foo", 42.0, "bar", mergeConflict{42.0, "bar"}},
 		{
 			map[string]interface{}{},
 			map[string]interface{}{},
