@@ -112,3 +112,44 @@ func TestMerge(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkNil(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		merge(nil, nil, nil)
+	}
+}
+
+func BenchmarkSimple(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		merge(1.0, 2.0, 2.0)
+	}
+}
+
+func BenchmarkEmptyMap(b *testing.B) {
+	old := map[string]interface{}{}
+	obja := map[string]interface{}{}
+	objb := map[string]interface{}{}
+	for i := 0; i < b.N; i++ {
+		merge(old, obja, objb)
+	}
+}
+
+func BenchmarkMap(b *testing.B) {
+	old := map[string]interface{}{
+		"a": 47.0,
+		"b": 3.0,
+	}
+	obja := map[string]interface{}{
+		"a": 47.0,
+		"b": 3.0,
+		"c": "hi",
+	}
+	objb := map[string]interface{}{
+		"a": 47.0,
+		"c": "hi",
+		"d": "hey",
+	}
+	for i := 0; i < b.N; i++ {
+		merge(old, obja, objb)
+	}
+}
