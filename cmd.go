@@ -452,6 +452,8 @@ func cmdCheckout(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	switch vt := proj.VCS.Type; vt {
 	case catalog.Mercurial:
 		vc = new(vcs.Mercurial)
+	case catalog.Subversion:
+		vc = new(vcs.Subversion)
 	default:
 		return badVCSError(vt)
 	}
