@@ -36,13 +36,13 @@ func requireCatalog() catalog.Catalog {
 		panic(errCatalogPathNotSet)
 	}
 
-	// TODO(light): check for other VCSs
-	var v vcs.VCS = new(vcs.Mercurial)
-	if ok, err := v.IsWorkingCopy(catalogPath); !ok || err != nil {
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "catalog VCS warning:", err)
-		}
-		v = nil
+	var v vcs.VCS
+	wc, err := vcs.OpenWorkingCopy(catalogPath)
+	if wc != nil {
+		v = wc.VCS()
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "catalog VCS warning:", err)
 	}
 
 	cat, err := catalog.Open(catalogPath, v)

@@ -60,3 +60,21 @@ type Rev interface {
 	Rev() string
 	String() string
 }
+
+// OpenWorkingCopy determines the VCS used at path and returns a WorkingCopy, or
+// nil if the path is not a recognized working copy.
+func OpenWorkingCopy(path string) (WorkingCopy, error) {
+	vcsList := []VCS{
+		new(Mercurial),
+		new(Subversion),
+	}
+	for _, v := range vcsList {
+		ok, err := v.IsWorkingCopy(path)
+		if err != nil {
+			return nil, err
+		} else if ok {
+			return v.WorkingCopy(path)
+		}
+	}
+	return nil, nil
+}
