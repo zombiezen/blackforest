@@ -1,4 +1,6 @@
 // The jsonmerge command performs an ancestor merge on a JSON object.
+//
+// https://bitbucket.org/zombiezen/glados/wiki/JSON%20Merge.md
 package main
 
 import (
@@ -33,10 +35,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(exitFailure)
 	}
-	mergeObj := merge(objOld, objA, objB)
+	mergeObj, conflicts := merge(objOld, objA, objB)
 	if err := output(os.Stdout, mergeObj, *pretty); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(exitFailure)
+	}
+	if conflicts {
+		os.Exit(exitConflicts)
 	}
 }
 
@@ -64,38 +69,41 @@ func readJSON(path string) (interface{}, error) {
 	return v, err
 }
 
-func merge(old, a, b interface{}) interface{} {
+// merge merges performs a 3-way merge on two JSON objects.  If there is no
+// ancestor available, old should be nil.  conflicts will be true if there were
+// any conflicts during the merge.
+func merge(old, a, b interface{}) (merged interface{}, conflicts bool) {
 	if reflect.DeepEqual(a, b) {
-		return a
+		return a, false
 	}
 	vold, va, vb := reflect.ValueOf(old), reflect.ValueOf(a), reflect.ValueOf(b)
 	told, ta, tb := reflect.TypeOf(old), reflect.TypeOf(a), reflect.TypeOf(b)
 	if !isSameType(ta, tb) {
 		if reflect.DeepEqual(a, old) {
-			return b
+			return b, false
 		} else if reflect.DeepEqual(b, old) {
-			return a
+			return a, false
 		}
-		return &mergeConflict{a, b}
+		return &mergeConflict{a, b}, true
 	}
 	if a == nil {
-		return nil
+		return nil, false
 	}
 	switch ta.Kind() {
 	case reflect.Bool, reflect.String, reflect.Float64:
 		if isSameType(ta, told) {
 			if a == old {
-				return b
+				return b, false
 			} else if b == old {
-				return a
+				return a, false
 			}
 		}
 	case reflect.Slice:
 		if isSameType(ta, told) {
 			if reflect.DeepEqual(a, old) {
-				return b
+				return b, false
 			} else if reflect.DeepEqual(b, old) {
-				return a
+				return a, false
 			}
 		}
 	case reflect.Map:
@@ -107,7 +115,11 @@ func merge(old, a, b interface{}) interface{} {
 		addB, remB := getAddRemoveKeys(kold, kb)
 		result := make(map[string]interface{})
 		for k := range ka.Intersect(kb) {
-			result[k] = merge(mapIndex(vold, k), mapIndex(va, k), mapIndex(vb, k))
+			var c bool
+			result[k], c = merge(mapIndex(vold, k), mapIndex(va, k), mapIndex(vb, k))
+			if c {
+				conflicts = true
+			}
 		}
 		for k := range addA.Subtract(kb) {
 			result[k] = mapIndex(va, k)
@@ -122,6 +134,7 @@ func merge(old, a, b interface{}) interface{} {
 			oldIdx, bIdx := mapIndex(vold, k), mapIndex(vb, k)
 			if !reflect.DeepEqual(oldIdx, bIdx) {
 				result[k] = &mergeConflict{nil, bIdx}
+				conflicts = true
 			}
 		}
 		for k := range remB {
@@ -131,11 +144,12 @@ func merge(old, a, b interface{}) interface{} {
 			oldIdx, aIdx := mapIndex(vold, k), mapIndex(va, k)
 			if !reflect.DeepEqual(oldIdx, aIdx) {
 				result[k] = &mergeConflict{aIdx, nil}
+				conflicts = true
 			}
 		}
-		return result
+		return result, conflicts
 	}
-	return &mergeConflict{a, b}
+	return &mergeConflict{a, b}, true
 }
 
 func mapIndex(m reflect.Value, k string) interface{} {
@@ -246,7 +260,8 @@ func (c *mergeConflict) MarshalJSON() ([]byte, error) {
 
 // Exit codes
 const (
-	exitSuccess = 0
-	exitFailure = 1
-	exitUsage   = 64
+	exitSuccess   = 0
+	exitFailure   = 1
+	exitConflicts = 2
+	exitUsage     = 64
 )
