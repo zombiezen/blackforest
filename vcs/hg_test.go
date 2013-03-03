@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const desiredWC = "/wc"
+const desiredHgPath = "/wc"
 
 var magicHgRev = mercurialRev{0x0d, 0x9c, 0x2b, 0x3c, 0x7b, 0xce, 0x68, 0xef, 0x99, 0x50, 0xd2, 0x37, 0xea, 0xc5, 0xff, 0x67, 0xf1, 0x17, 0xbf, 0xf5}
 
@@ -40,18 +40,18 @@ func TestMercurialCurrent(t *testing.T) {
 	mc := mockCommander{
 		{
 			Out:        *bytes.NewBufferString("0d9c2b3c7bce68ef9950d237eac5ff67f117bff5\n"),
-			ExpectDir:  desiredWC,
+			ExpectDir:  desiredHgPath,
 			ExpectArgs: []string{"hg", "identify", "--debug", "-i"},
 		},
 	}
-	wc := newIsolatedMercurialWC(desiredWC, mc)
+	wc := newIsolatedMercurialWC(desiredHgPath, mc)
 	rev, err := wc.Current()
 	mc.check(t)
 	if err != nil {
 		t.Errorf("wc.Current() error: %v", err)
 	}
 	if r := magicHgRev; rev != r {
-		t.Errorf("wc.Current() = %v; want %v", rev.Rev(), r.Rev())
+		t.Errorf("wc.Current() = %v; want %v", rev, r)
 	}
 }
 
@@ -59,11 +59,11 @@ func TestMercurialAdd(t *testing.T) {
 	mc := mockCommander{
 		{
 			Out:        *bytes.NewBuffer([]byte{}),
-			ExpectDir:  desiredWC,
+			ExpectDir:  desiredHgPath,
 			ExpectArgs: []string{"hg", "add", "path:foo", "path:bar"},
 		},
 	}
-	wc := newIsolatedMercurialWC(desiredWC, mc)
+	wc := newIsolatedMercurialWC(desiredHgPath, mc)
 	files := []string{"foo", "bar"}
 	err := wc.Add(files)
 	mc.check(t)
@@ -76,11 +76,11 @@ func TestMercurialRemove(t *testing.T) {
 	mc := mockCommander{
 		{
 			Out:        *bytes.NewBuffer([]byte{}),
-			ExpectDir:  desiredWC,
+			ExpectDir:  desiredHgPath,
 			ExpectArgs: []string{"hg", "remove", "path:foo", "path:bar"},
 		},
 	}
-	wc := newIsolatedMercurialWC(desiredWC, mc)
+	wc := newIsolatedMercurialWC(desiredHgPath, mc)
 	files := []string{"foo", "bar"}
 	err := wc.Remove(files)
 	mc.check(t)
@@ -93,11 +93,11 @@ func TestMercurialRename(t *testing.T) {
 	mc := mockCommander{
 		{
 			Out:        *bytes.NewBuffer([]byte{}),
-			ExpectDir:  desiredWC,
+			ExpectDir:  desiredHgPath,
 			ExpectArgs: []string{"hg", "rename", "--after", "--", "foo", "bar"},
 		},
 	}
-	wc := newIsolatedMercurialWC(desiredWC, mc)
+	wc := newIsolatedMercurialWC(desiredHgPath, mc)
 	err := wc.Rename("foo", "bar")
 	mc.check(t)
 	if err != nil {
@@ -113,11 +113,11 @@ func TestMercurialCommit(t *testing.T) {
 		mc := mockCommander{
 			{
 				Out:        *bytes.NewBuffer([]byte{}),
-				ExpectDir:  desiredWC,
+				ExpectDir:  desiredHgPath,
 				ExpectArgs: []string{"hg", "commit", "-m", commitMessage},
 			},
 		}
-		wc := newIsolatedMercurialWC(desiredWC, mc)
+		wc := newIsolatedMercurialWC(desiredHgPath, mc)
 		err := wc.Commit("Hello, World!", nil)
 		mc.check(t)
 		if err != nil {
@@ -130,11 +130,11 @@ func TestMercurialCommit(t *testing.T) {
 		mc := mockCommander{
 			{
 				Out:        *bytes.NewBuffer([]byte{}),
-				ExpectDir:  desiredWC,
+				ExpectDir:  desiredHgPath,
 				ExpectArgs: []string{"hg", "commit", "-m", commitMessage, "path:foo", "path:bar"},
 			},
 		}
-		wc := newIsolatedMercurialWC(desiredWC, mc)
+		wc := newIsolatedMercurialWC(desiredHgPath, mc)
 		files := []string{"foo", "bar"}
 		err := wc.Commit("Hello, World!", files)
 		mc.check(t)
@@ -149,11 +149,11 @@ func TestMercurialUpdate(t *testing.T) {
 		mc := mockCommander{
 			{
 				Out:        *bytes.NewBuffer([]byte{}),
-				ExpectDir:  desiredWC,
+				ExpectDir:  desiredHgPath,
 				ExpectArgs: []string{"hg", "update"},
 			},
 		}
-		wc := newIsolatedMercurialWC(desiredWC, mc)
+		wc := newIsolatedMercurialWC(desiredHgPath, mc)
 		err := wc.Update(nil)
 		mc.check(t)
 		if err != nil {
@@ -165,11 +165,11 @@ func TestMercurialUpdate(t *testing.T) {
 		mc := mockCommander{
 			{
 				Out:        *bytes.NewBuffer([]byte{}),
-				ExpectDir:  desiredWC,
+				ExpectDir:  desiredHgPath,
 				ExpectArgs: []string{"hg", "update", "-r", magicHgRev.Rev()},
 			},
 		}
-		wc := newIsolatedMercurialWC(desiredWC, mc)
+		wc := newIsolatedMercurialWC(desiredHgPath, mc)
 		err := wc.Update(magicHgRev)
 		mc.check(t)
 		if err != nil {

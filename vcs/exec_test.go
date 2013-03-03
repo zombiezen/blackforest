@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/ioutil"
 	"reflect"
 	"testing"
 )
@@ -74,6 +75,7 @@ func (mc *mockCommand) Run() error {
 		return errTooManyCmds
 	}
 	mc.Out.Truncate(0)
+	// TODO(light): mock exit codes?
 	return nil
 }
 
@@ -81,7 +83,7 @@ func (mc *mockCommand) Start() error {
 	if mc.Bad {
 		return errTooManyCmds
 	}
-	return errMockCmd
+	return nil
 }
 
 func (mc *mockCommand) StderrPipe() (io.ReadCloser, error) {
@@ -102,12 +104,13 @@ func (mc *mockCommand) StdoutPipe() (io.ReadCloser, error) {
 	if mc.Bad {
 		return nil, errTooManyCmds
 	}
-	return nil, errMockCmd
+	return ioutil.NopCloser(&mc.Out), nil
 }
 
 func (mc *mockCommand) Wait() error {
 	if mc.Bad {
 		return errTooManyCmds
 	}
-	return errMockCmd
+	// TODO(light): mock exit codes?
+	return nil
 }
