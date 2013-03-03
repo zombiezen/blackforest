@@ -8,18 +8,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 )
 
 func main() {
+	outPath := flag.String("o", "", "output file (default: stdout)")
 	pretty := flag.Bool("pretty", false, "indent output")
 	flag.Parse()
 	if flag.NArg() != 3 {
 		fmt.Fprintln(os.Stderr, "usage: jsonmerge MYFILE OLDFILE YOURFILE")
 		os.Exit(exitUsage)
 	}
+
 	objA, err := readJSON(flag.Arg(0))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -36,7 +37,8 @@ func main() {
 		os.Exit(exitFailure)
 	}
 	mergeObj, conflicts := merge(objOld, objA, objB)
-	if err := output(os.Stdout, mergeObj, *pretty); err != nil {
+
+	if err := output(*outPath, mergeObj, *pretty); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(exitFailure)
 	}
@@ -45,16 +47,28 @@ func main() {
 	}
 }
 
-func output(w io.Writer, v interface{}, pretty bool) error {
+func output(path string, v interface{}, pretty bool) (err error) {
+	f := os.Stdout
+	if path != "" {
+		if f, err = os.Create(path); err != nil {
+			return err
+		}
+		defer func() {
+			if cerr := f.Close(); err == nil && cerr != nil {
+				err = cerr
+			}
+		}()
+	}
+
 	if !pretty {
-		return json.NewEncoder(w).Encode(v)
+		return json.NewEncoder(f).Encode(v)
 	}
 	data, err := json.MarshalIndent(v, "", "\t")
 	if err != nil {
 		return err
 	}
 	data = append(data, '\n')
-	_, err = os.Stdout.Write(data)
+	_, err = f.Write(data)
 	return err
 }
 
