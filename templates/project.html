@@ -13,24 +13,26 @@
             </ul>
         </div>
     </div>
-    <div class="row">
-        <div class="span8">
-            <h1>{{.Name}}</h1>
-            {{with .Description}}<p>{{.}}</p>{{end}}
-        </div>
-        <div class="span4">
-            <dl class="dl-horizontal">
-                <dt>Short Name</dt><dd>{{.ShortName}}</dd>
-                {{with .Homepage}}<dt>Homepage</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
-                {{with .Tags}}<dt>Tags</dt><dd>{{range $i, $tag := .}}{{if $i}}, {{end}}{{.}}{{end}}</dd>{{end}}
-                {{with .VCS}}
-                <dt>VCS</dt><dd>{{.Type}}</dd>
-                {{with .URL}}<dt>VCS Link</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
-                {{end}}
-                <dt>Created</dt><dd>{{.CreateTime}}</dd>
-                <dt>Catalogued</dt><dd>{{.CatalogTime}}</dd>
-                <dt>ID</dt><dd>{{.ID}}</dd>
-            </dl>
+    <div class="container">
+        <h1>{{.Name}}</h1>
+        <div class="row">
+            <div class="span6">
+                {{with .Description}}<p>{{.}}</p>{{end}}
+            </div>
+            <div class="span6">
+                <dl class="dl-horizontal">
+                    <dt>Short Name</dt><dd>{{.ShortName}}</dd>
+                    {{with .Homepage}}<dt>Homepage</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
+                    {{with .Tags}}<dt>Tags</dt><dd>{{range $i, $tag := .}}{{if $i}}, {{end}}{{.}}{{end}}</dd>{{end}}
+                    {{with .VCS}}
+                    <dt>VCS</dt><dd>{{.Type}}</dd>
+                    {{with .URL}}<dt>VCS Link</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
+                    {{end}}
+                    <dt>Created</dt><dd>{{.CreateTime}}</dd>
+                    <dt>Catalogued</dt><dd>{{.CatalogTime}}</dd>
+                    <dt>ID</dt><dd>{{.ID}}</dd>
+                </dl>
+            </div>
         </div>
     </div>
     <script src="{{path "js" "path" "jquery.min.js"}}"></script>
