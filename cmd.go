@@ -96,6 +96,13 @@ var commandSet = subcmd.Set{
 			Synopsis:    "checkout PROJECT [PATH]",
 			Description: "check out project from version control",
 		},
+		{
+			Func:        cmdWeb,
+			Name:        "web",
+			Aliases:     []string{},
+			Synopsis:    "web [OPTIONS]",
+			Description: "run web server",
+		},
 	},
 }
 

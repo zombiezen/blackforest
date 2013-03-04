@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GLaDOS</title>
+    {{template "head.html"}}
+</head>
+<body>
+    <div class="navbar">
+        <div class="navbar-inner">
+            <a class="brand" href="{{path "index"}}">GLaDOS</a>
+            <ul class="nav">
+                <li class="active"><a href="{{path "index"}}">Home</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="container">
+        <h1>GLaDOS</h1>
+        <p>{{len .}} projects</p>
+        <table class=".table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Tags</th>
+                <th>URL</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{range .}}
+            <tr>
+                <td><a href="#" title="{{.ShortName}}">{{.Name}}</a></td>
+                <td>{{range $i, $tag := .Tags}}{{if $i}}, {{end}}{{.}}{{end}}</td>
+                <td>{{with .Homepage}}<a href="{{.}}">Homepage</a>{{end}}</td>
+            </tr>
+        {{end}}
+        </tbody>
+        </ul>
+    </div>
+    <script src="{{path "js" "path" "jquery.min.js"}}"></script>
+    <script src="{{path "js" "path" "bootstrap.min.js"}}"></script>
+</body>
+</html>
