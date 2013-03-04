@@ -41,7 +41,7 @@ func runEditor(text string) (string, error) {
 // escapes any single quotes inside arg by using double quotes.
 func shellEscape(arg string) string {
 	// BUG(light): shellEscape fails on Windows because cmd.exe does not accept
-	//             single quotes as a quoting mechanism.
+	// single quotes as a quoting mechanism.
 
 	parts := make([]string, 0, 1)
 	for {
