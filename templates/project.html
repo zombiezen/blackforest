@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GLaDOS</title>
+    {{template "head.html"}}
+</head>
+<body>
+    <div class="navbar">
+        <div class="navbar-inner">
+            <a class="brand" href="{{path "index"}}">GLaDOS</a>
+            <ul class="nav">
+                <li class="active"><a href="{{path "index"}}">Projects</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="row">
+        <div class="span8">
+            <h1>{{.Name}}</h1>
+            {{with .Description}}<p>{{.}}</p>{{end}}
+        </div>
+        <div class="span4">
+            <dl class="dl-horizontal">
+                <dt>Short Name</dt><dd>{{.ShortName}}</dd>
+                {{with .Homepage}}<dt>Homepage</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
+                {{with .Tags}}<dt>Tags</dt><dd>{{range $i, $tag := .}}{{if $i}}, {{end}}{{.}}{{end}}</dd>{{end}}
+                {{with .VCS}}
+                <dt>VCS</dt><dd>{{.Type}}</dd>
+                {{with .URL}}<dt>VCS Link</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
+                {{end}}
+                <dt>Created</dt><dd>{{.CreateTime}}</dd>
+                <dt>Catalogued</dt><dd>{{.CatalogTime}}</dd>
+                <dt>ID</dt><dd>{{.ID}}</dd>
+            </dl>
+        </div>
+    </div>
+    <script src="{{path "js" "path" "jquery.min.js"}}"></script>
+    <script src="{{path "js" "path" "bootstrap.min.js"}}"></script>
+</body>
+</html>

@@ -29,6 +29,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 
 	r := mux.NewRouter()
 	r.Handle("/", &handler{cat, handleIndex}).Name("index")
+	r.Handle("/project/{project}", &handler{cat, handleProject}).Name("project")
 	staticDirRoute(r, "/css/", filepath.Join(*staticDir, "css")).Name("css")
 	staticDirRoute(r, "/img/", filepath.Join(*staticDir, "img")).Name("img")
 	staticDirRoute(r, "/js/", filepath.Join(*staticDir, "js")).Name("js")
@@ -58,6 +59,17 @@ func handleIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) 
 		}
 	}
 	return tmpl.ExecuteTemplate(w, "index.html", projects)
+}
+
+func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+	sn := mux.Vars(req)["project"]
+	proj, err := cat.GetProject(sn)
+	if err != nil {
+		return err
+	} else if proj == nil {
+		return &webapp.NotFound{req.URL}
+	}
+	return tmpl.ExecuteTemplate(w, "project.html", proj)
 }
 
 type handler struct {
