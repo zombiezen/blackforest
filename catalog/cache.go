@@ -10,6 +10,7 @@ type Cache struct {
 
 	m    map[string]Project
 	id   map[ID]string
+	tags map[string]stringSet
 	lock sync.RWMutex
 }
 
@@ -22,8 +23,16 @@ func NewCache(cat Catalog) (*Cache, error) {
 
 // cache adds a project into the cache indices.  It does not acquire a lock.
 func (c *Cache) cache(p *Project) {
-	c.m[p.ShortName] = *p
-	c.id[p.ID] = p.ShortName
+	sn := p.ShortName
+	c.m[sn] = *p
+	c.id[p.ID] = sn
+	for _, tag := range p.Tags {
+		if set := c.tags[tag]; set == nil {
+			c.tags[tag] = stringSet{sn: {}}
+		} else {
+			set.Add(sn)
+		}
+	}
 }
 
 // uncache removes all occurences of a short name from the indices.  It does not
@@ -33,6 +42,9 @@ func (c *Cache) uncache(shortName string) {
 		if sn == shortName {
 			delete(c.id, id)
 		}
+	}
+	for _, set := range c.tags {
+		set.Remove(shortName)
 	}
 	delete(c.m, shortName)
 }
@@ -50,6 +62,7 @@ func (c *Cache) RefreshAll() error {
 	}
 	c.m = make(map[string]Project, len(names))
 	c.id = make(map[ID]string, len(names))
+	c.tags = make(map[string]stringSet)
 	for _, sn := range names {
 		p, err := c.cat.GetProject(sn)
 		if err != nil {
@@ -59,6 +72,28 @@ func (c *Cache) RefreshAll() error {
 		}
 	}
 	return nil
+}
+
+// Tags returns the list of known tags in the cache.
+func (c *Cache) Tags() []string {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	tags := make([]string, 0, len(c.tags))
+	for tag, set := range c.tags {
+		if len(set) > 0 {
+			tags = append(tags, tag)
+		}
+	}
+	return tags
+}
+
+// FindTag builds a list of all the projects with a tag.
+func (c *Cache) FindTag(tag string) []string {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	return c.tags[tag].Slice()
 }
 
 // List returns a list of all the project short names in the catalog.
@@ -97,7 +132,7 @@ func (c *Cache) PutProject(project *Project) error {
 	}
 
 	if old, ok := c.id[project.ID]; ok {
-		delete(c.m, old)
+		c.uncache(old)
 	}
 	c.cache(project)
 	return nil
@@ -123,4 +158,41 @@ func (c *Cache) ShortName(id ID) (string, error) {
 	defer c.lock.RUnlock()
 
 	return c.id[id], nil
+}
+
+type stringSet map[string]struct{}
+
+func newStringSet(vals []string) stringSet {
+	ss := make(stringSet, len(vals))
+	for _, v := range vals {
+		ss.Add(v)
+	}
+	return ss
+}
+
+func (ss stringSet) Has(s string) bool {
+	if ss == nil {
+		return false
+	}
+	_, ok := ss[s]
+	return ok
+}
+
+func (ss stringSet) Add(s string) {
+	ss[s] = struct{}{}
+}
+
+func (ss stringSet) Remove(s string) {
+	delete(ss, s)
+}
+
+func (ss stringSet) Slice() []string {
+	if ss == nil {
+		return []string{}
+	}
+	slice := make([]string, 0, len(ss))
+	for k := range ss {
+		slice = append(slice, k)
+	}
+	return slice
 }

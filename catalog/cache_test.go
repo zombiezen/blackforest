@@ -5,11 +5,10 @@ import (
 	"testing"
 )
 
-func TestCacheAccess(t *testing.T) {
-	magicID := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
-	mc := mockCatalog{
+func newMockCatalog() mockCatalog {
+	return mockCatalog{
 		"glados": &Project{
-			ID:          magicID,
+			ID:          ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d},
 			ShortName:   "glados",
 			Name:        "GLaDOS",
 			Description: "Giant Library and Distributed Organizing System",
@@ -18,6 +17,11 @@ func TestCacheAccess(t *testing.T) {
 			Tags:        []string{"go", "http", "os", "tools"},
 		},
 	}
+}
+
+func TestCacheAccess(t *testing.T) {
+	magicID := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
+	mc := newMockCatalog()
 	c, err := NewCache(mc)
 	if err != nil {
 		t.Error("NewCache error:", err)
@@ -55,21 +59,18 @@ func TestCacheAccess(t *testing.T) {
 	if err != nil {
 		t.Errorf("Cache.GetProject(%q) error: %v", "glados", err)
 	}
+
+	if tags, want := newStringSet(c.Tags()), newStringSet([]string{"go", "http", "os", "tools"}); !reflect.DeepEqual(tags, want) {
+		t.Errorf("Cache.Tags() = %v; want %v", tags.Slice(), want.Slice())
+	}
+	if names := c.FindTag("go"); !reflect.DeepEqual(names, []string{"glados"}) {
+		t.Errorf("Cache.FindTag(%q) = %v; want %v", "go", names, []string{"glados"})
+	}
 }
 
 func TestCachePut(t *testing.T) {
 	magicID := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
-	mc := mockCatalog{
-		"glados": &Project{
-			ID:          magicID,
-			ShortName:   "glados",
-			Name:        "GLaDOS",
-			Description: "Giant Library and Distributed Organizing System",
-			CatalogTime: magicTime,
-			CreateTime:  magicTime,
-			Tags:        []string{"go", "http", "os", "tools"},
-		},
-	}
+	mc := newMockCatalog()
 	c, err := NewCache(mc)
 	if err != nil {
 		t.Error("NewCache error:", err)
@@ -82,7 +83,7 @@ func TestCachePut(t *testing.T) {
 		Description: "Giant Library and Distributed Organizing System",
 		CatalogTime: magicTime,
 		CreateTime:  magicTime,
-		Tags:        []string{"go", "http", "os", "tools"},
+		Tags:        []string{"go", "web", "os", "tools"},
 	}
 
 	if err := c.PutProject(proj); err != nil {
@@ -98,7 +99,7 @@ func TestCachePut(t *testing.T) {
 		Description: "Giant Library and Distributed Organizing System",
 		CatalogTime: magicTime,
 		CreateTime:  magicTime,
-		Tags:        []string{"go", "http", "os", "tools"},
+		Tags:        []string{"go", "web", "os", "tools"},
 	}
 	if !projectEqual(p, want) {
 		t.Errorf("Cache.GetProject(%q) = %v; want %v", "gladosa", p, want)
@@ -127,6 +128,16 @@ func TestCachePut(t *testing.T) {
 	}
 	if err != nil {
 		t.Errorf("Cache.ShortName(%v) error: %v", magicID, err)
+	}
+
+	if tags, want := newStringSet(c.Tags()), newStringSet([]string{"go", "web", "os", "tools"}); !reflect.DeepEqual(tags, want) {
+		t.Errorf("Cache.Tags() = %v; want %v", tags.Slice(), want.Slice())
+	}
+	if names := c.FindTag("web"); !reflect.DeepEqual(names, []string{"gladosa"}) {
+		t.Errorf("Cache.FindTag(%q) = %v; want %v", "web", names, []string{"gladosa"})
+	}
+	if names := c.FindTag("http"); len(names) != 0 {
+		t.Errorf("Cache.FindTag(%q) = %v; want %v", "http", names, []string{})
 	}
 }
 
