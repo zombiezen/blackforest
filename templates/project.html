@@ -5,14 +5,7 @@
 {{template "head.html"}}
 </head>
 <body>
-    <div class="navbar">
-        <div class="navbar-inner">
-            <a class="brand" href="{{path "index"}}">GLaDOS</a>
-            <ul class="nav">
-                <li class="active"><a href="{{path "index"}}">Projects</a></li>
-            </ul>
-        </div>
-    </div>
+{{template "nav-projects.html"}}
     <div class="container">
         <h1>{{.Name}}</h1>
         <div class="row">

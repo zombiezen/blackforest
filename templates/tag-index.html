@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GLaDOS Tags</title>
+{{template "head.html"}}
+</head>
+<body>
+{{template "nav-tags.html"}}
+    <div class="container">
+        <h1>Tags</h1>
+        <div class="row">
+            <div id="tagsidebar" class="span3">
+                <ul class="nav nav-list">
+                    {{range .}}
+                    <li><a href="{{path "tag" "tag" .}}">{{.}}</a></li>
+                    {{end}}
+                </ul>
+            </div>
+            <div class="span9">
+                <p>{{len .}} tags</p>
+            </div>
+        </div>
+    </div>
+{{template "js.html"}}
+</body>
+</html>

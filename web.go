@@ -26,10 +26,16 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		return exitError(exitUsage)
 	}
 	cat := requireCatalog()
+	var err error
+	if cat, err = catalog.NewCache(cat); err != nil {
+		return err
+	}
 
 	r := mux.NewRouter()
 	r.Handle("/", &handler{cat, handleIndex}).Name("index")
 	r.Handle("/project/{project}", &handler{cat, handleProject}).Name("project")
+	r.Handle("/tag/", &handler{cat, handleTagIndex}).Name("tagindex")
+	r.Handle("/tag/{tag}", &handler{cat, handleTag}).Name("tag")
 	staticDirRoute(r, "/css/", filepath.Join(*staticDir, "css")).Name("css")
 	staticDirRoute(r, "/img/", filepath.Join(*staticDir, "img")).Name("img")
 	staticDirRoute(r, "/js/", filepath.Join(*staticDir, "js")).Name("js")
@@ -70,6 +76,44 @@ func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request
 		return &webapp.NotFound{req.URL}
 	}
 	return tmpl.ExecuteTemplate(w, "project.html", proj)
+}
+
+func handleTagIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+	cache := cat.(*catalog.Cache)
+	tags := cache.Tags()
+	sort.Strings(tags)
+	return tmpl.ExecuteTemplate(w, "tag-index.html", tags)
+}
+
+func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+	tag := mux.Vars(req)["tag"]
+
+	cache := cat.(*catalog.Cache)
+	tags := cache.Tags()
+	sort.Strings(tags)
+
+	names := cache.FindTag(tag)
+	if len(names) == 0 {
+		return &webapp.NotFound{req.URL}
+	}
+	sort.Strings(names)
+	projects := make([]*catalog.Project, 0, len(names))
+	for _, sn := range names {
+		p, err := cat.GetProject(sn)
+		if err == nil {
+			projects = append(projects, p)
+		} else {
+			log.Printf("error fetching %s from list: %v", sn, err)
+		}
+	}
+
+	return tmpl.ExecuteTemplate(w, "tag.html", struct {
+		Tag      string
+		Tags     []string
+		Projects []*catalog.Project
+	}{
+		tag, tags, projects,
+	})
 }
 
 type handler struct {
