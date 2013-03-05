@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-// A Catalog is a database of projects.
+// A Catalog is a database of projects.  A Catalog is safe to use from
+// multiple goroutines.
 type Catalog interface {
 	// List returns a list of all the project short names in the catalog.
 	List() ([]string, error)
