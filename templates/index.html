@@ -21,7 +21,7 @@
         {{range .}}
             <tr>
                 <td><a href="{{path "project" "project" .ShortName}}" title="{{.ShortName}}">{{.Name}}</a></td>
-                <td>{{range $i, $tag := .Tags}}{{if $i}}, {{end}}{{.}}{{end}}</td>
+                <td>{{template "tagset.html" .Tags}}</td>
                 <td>{{with .Homepage}}<a href="{{.}}">{{.}}</a>{{end}}</td>
             </tr>
         {{end}}
