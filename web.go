@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"bitbucket.org/zombiezen/glados/catalog"
 	"bitbucket.org/zombiezen/subcmd"
@@ -80,17 +81,14 @@ func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request
 
 func handleTagIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
 	cache := cat.(*catalog.Cache)
-	tags := cache.Tags()
-	sort.Strings(tags)
-	return tmpl.ExecuteTemplate(w, "tag-index.html", tags)
+	return tmpl.ExecuteTemplate(w, "tag-index.html", organizeTags(cache))
 }
 
 func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
 	tag := mux.Vars(req)["tag"]
 
 	cache := cat.(*catalog.Cache)
-	tags := cache.Tags()
-	sort.Strings(tags)
+	tags := organizeTags(cache)
 
 	names := cache.FindTag(tag)
 	if len(names) == 0 {
@@ -109,7 +107,7 @@ func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) er
 
 	return tmpl.ExecuteTemplate(w, "tag.html", struct {
 		Tag      string
-		Tags     []string
+		Tags     []tagGroup
 		Projects []*catalog.Project
 	}{
 		tag, tags, projects,
@@ -148,3 +146,54 @@ func staticDirRoute(r *mux.Router, prefix, path string) *mux.Route {
 		fs.ServeHTTP(w, req)
 	})
 }
+
+type tagInfo struct {
+	Tag   string
+	Count int
+}
+
+type tagGroup struct {
+	Label string
+	Tags  []tagInfo
+}
+
+// organizeTags splits the list of tags from a cache into groups and retrieves
+// the number of projects each tag has.
+func organizeTags(cache *catalog.Cache) []tagGroup {
+	tags := cache.Tags()
+	sort.Strings(tags)
+
+	misc := make([]tagInfo, 0, len(tags))
+	groups := []tagGroup{}
+	for i := 0; i < len(tags); i++ {
+		t := tags[i]
+		info := tagInfo{Tag: t, Count: len(cache.FindTag(t))}
+		if dash := strings.IndexRune(t, '-'); dash != -1 {
+			label, prefix := t[:dash], t[:dash+1]
+			j := i + 1
+			for ; j < len(tags) && strings.HasPrefix(tags[j], prefix); j++ {
+			}
+			if j-i > 1 {
+				infos := make([]tagInfo, j-i)
+				for i, t := range tags[i:j] {
+					infos[i] = tagInfo{Tag: t, Count: len(cache.FindTag(t))}
+				}
+				groups = append(groups, tagGroup{Label: label, Tags: infos})
+				i = j
+			} else {
+				misc = append(misc, info)
+			}
+		} else {
+			misc = append(misc, info)
+		}
+	}
+	sort.Sort(byTagCount(misc))
+	groups = append(groups, tagGroup{Tags: misc})
+	return groups
+}
+
+type byTagCount []tagInfo
+
+func (t byTagCount) Len() int           { return len(t) }
+func (t byTagCount) Less(i, j int) bool { return t[i].Count > t[j].Count }
+func (t byTagCount) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }

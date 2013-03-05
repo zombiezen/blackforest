@@ -9,13 +9,7 @@
     <div class="container">
         <h1>Tags</h1>
         <div class="row">
-            <div id="tagsidebar" class="span3">
-                <ul class="nav nav-list">
-                    {{range .Tags}}
-                    <li><a href="{{path "tag" "tag" .}}">{{.}}</a></li>
-                    {{end}}
-                </ul>
-            </div>
+            {{template "tagsidebar.html" .Tags}}
             <div class="span9">
                 <h2>Projects Tagged with "{{.Tag}}"</h2>
                 <table class="table">

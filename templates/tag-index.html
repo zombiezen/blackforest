@@ -9,15 +9,9 @@
     <div class="container">
         <h1>Tags</h1>
         <div class="row">
-            <div id="tagsidebar" class="span3">
-                <ul class="nav nav-list">
-                    {{range .}}
-                    <li><a href="{{path "tag" "tag" .}}">{{.}}</a></li>
-                    {{end}}
-                </ul>
-            </div>
+            {{template "tagsidebar.html" .}}
             <div class="span9">
-                <p>{{len .}} tags</p>
+                <p>Pick a tag from the left to see projects.</p>
             </div>
         </div>
     </div>

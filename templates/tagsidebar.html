@@ -1,0 +1,10 @@
+<div id="tagsidebar" class="span3">
+    <ul class="nav nav-list">
+        {{range .}}
+        {{with .Label}}<li class="nav-header">{{.}}</li>{{else}}<hr>{{end}}
+        {{range .Tags}}
+        <li><a href="{{path "tag" "tag" .Tag}}">{{.Tag}} <span class="badge pull-right">{{.Count}}</span></a></li>
+        {{end}}
+        {{end}}
+    </ul>
+</div>
