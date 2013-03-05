@@ -1,0 +1,18 @@
+<table class="table">
+<thead>
+    <tr>
+	<th>Name</th>
+	<th>Tags</th>
+	<th>Homepage</th>
+    </tr>
+</thead>
+<tbody>
+{{range .}}
+    <tr>
+	<td><a href="{{path "project" "project" .ShortName}}" title="{{.ShortName}}">{{.Name}}</a></td>
+	<td>{{template "tagset.html" .Tags}}</td>
+	<td>{{with .Homepage}}<a href="{{.}}" title="{{.|prettyurl}}">{{.|prettyurl|ellipsis 25}}</a>{{end}}</td>
+    </tr>
+{{end}}
+</tbody>
+</table>

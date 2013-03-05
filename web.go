@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -43,6 +44,10 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 
 	tmpl = template.New("")
 	webapp.AddFuncs(tmpl, r)
+	tmpl.Funcs(template.FuncMap{
+		"prettyurl": prettyurl,
+		"ellipsis":  ellipsis,
+	})
 	if _, err := tmpl.ParseGlob(filepath.Join(*templateDir, "*.html")); err != nil {
 		return err
 	}
@@ -197,3 +202,30 @@ type byTagCount []tagInfo
 func (t byTagCount) Len() int           { return len(t) }
 func (t byTagCount) Less(i, j int) bool { return t[i].Count > t[j].Count }
 func (t byTagCount) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
+
+func prettyurl(u string) string {
+	if uu, err := url.Parse(u); err == nil {
+		if uu.Scheme == "http" || uu.Scheme == "https" {
+			u = uu.Host
+		} else {
+			u = uu.Scheme + "://" + uu.Host
+		}
+		if uu.Path != "/" {
+			u += uu.Path
+		}
+	}
+	return u
+}
+
+func ellipsis(n int, s string) string {
+	const (
+		width    = 3
+		ellipsis = "…"
+	)
+
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n-width]) + ellipsis
+}

@@ -12,24 +12,7 @@
             {{template "tagsidebar.html" .Tags}}
             <div class="span9">
                 <h2>Projects Tagged with "{{.Tag}}"</h2>
-                <table class="table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Tags</th>
-                        <th>Homepage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {{range .Projects}}
-                    <tr>
-                        <td><a href="{{path "project" "project" .ShortName}}" title="{{.ShortName}}">{{.Name}}</a></td>
-                        <td>{{template "tagset.html" .Tags}}</td>
-                        <td>{{with .Homepage}}<a href="{{.}}">{{.}}</a>{{end}}</td>
-                    </tr>
-                {{end}}
-                </tbody>
-                </table>
+                {{template "projectlist.html" .Projects}}
             </div>
         </div>
     </div>

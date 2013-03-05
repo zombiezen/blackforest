@@ -15,11 +15,11 @@
             <div class="span6">
                 <dl class="dl-horizontal">
                     <dt>Short Name</dt><dd>{{.ShortName}}</dd>
-                    {{with .Homepage}}<dt>Homepage</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
+                    {{with .Homepage}}<dt>Homepage</dt><dd><a href="{{.}}" title="{{.|prettyurl}}">{{.|prettyurl|ellipsis 25}}</a></dd>{{end}}
                     {{with .Tags}}<dt>Tags</dt><dd>{{template "tagset.html" .}}</dd>{{end}}
                     {{with .VCS}}
                     <dt>VCS</dt><dd>{{.Type}}</dd>
-                    {{with .URL}}<dt>VCS Link</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
+                    {{with .URL}}<dt>VCS Link</dt><dd><a href="{{.}}" title="{{.|prettyurl}}">{{.|prettyurl|ellipsis 25}}</a></dd>{{end}}
                     {{end}}
                     <dt>Created</dt><dd>{{.CreateTime}}</dd>
                     <dt>Catalogued</dt><dd>{{.CatalogTime}}</dd>
