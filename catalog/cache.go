@@ -20,6 +20,23 @@ func NewCache(cat Catalog) (*Cache, error) {
 	return c, err
 }
 
+// cache adds a project into the cache indices.  It does not acquire a lock.
+func (c *Cache) cache(p *Project) {
+	c.m[p.ShortName] = *p
+	c.id[p.ID] = p.ShortName
+}
+
+// uncache removes all occurences of a short name from the indices.  It does not
+// acquire a lock.
+func (c *Cache) uncache(shortName string) {
+	for id, sn := range c.id {
+		if sn == shortName {
+			delete(c.id, id)
+		}
+	}
+	delete(c.m, shortName)
+}
+
 // RefreshAll purges all keys from the cache and retrieves all the projects from
 // the underlying catalog.  Any error encountered in the process will abort the
 // refresh.
@@ -37,9 +54,9 @@ func (c *Cache) RefreshAll() error {
 		p, err := c.cat.GetProject(sn)
 		if err != nil {
 			return err
+		} else if p != nil {
+			c.cache(p)
 		}
-		c.m[sn] = *p
-		c.id[p.ID] = sn
 	}
 	return nil
 }
@@ -79,12 +96,10 @@ func (c *Cache) PutProject(project *Project) error {
 		return err
 	}
 
-	id, sn := project.ID, project.ShortName
-	if old, ok := c.id[id]; ok {
+	if old, ok := c.id[project.ID]; ok {
 		delete(c.m, old)
 	}
-	c.id[id] = sn
-	c.m[sn] = *project
+	c.cache(project)
 	return nil
 }
 
@@ -97,13 +112,7 @@ func (c *Cache) DelProject(shortName string) error {
 	if err := c.cat.DelProject(shortName); err != nil {
 		return err
 	}
-
-	for id, sn := range c.id {
-		if sn == shortName {
-			delete(c.id, id)
-		}
-	}
-	delete(c.m, shortName)
+	c.uncache(shortName)
 	return nil
 }
 
