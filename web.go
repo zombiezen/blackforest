@@ -192,7 +192,7 @@ func organizeTags(cache *catalog.Cache) []tagGroup {
 			misc = append(misc, info)
 		}
 	}
-	sort.Sort(byTagCount(misc))
+	sort.Sort(Stable(byTagCount(misc)))
 	groups = append(groups, tagGroup{Tags: misc})
 	return groups
 }
@@ -228,4 +228,31 @@ func ellipsis(n int, s string) string {
 		return s
 	}
 	return string(r[:n-width]) + ellipsis
+}
+
+type stable struct {
+	x    sort.Interface
+	perm []int
+}
+
+func (s *stable) Len() int { return len(s.perm) }
+
+func (s *stable) Less(i, j int) bool {
+	return s.x.Less(i, j) || !s.x.Less(j, i) && s.perm[i] < s.perm[j]
+}
+
+func (s *stable) Swap(i, j int) {
+	s.x.Swap(i, j)
+	s.perm[i], s.perm[j] = s.perm[j], s.perm[i]
+}
+
+func Stable(x sort.Interface) sort.Interface {
+	s := &stable{
+		x:    x,
+		perm: make([]int, x.Len()),
+	}
+	for i := range s.perm {
+		s.perm[i] = i
+	}
+	return s
 }
