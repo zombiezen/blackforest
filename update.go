@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"net/url"
 	"path/filepath"
 	"time"
 
@@ -185,4 +187,86 @@ func timeUpdateFlag(t *time.Time, help string) func(*flag.FlagSet, string) {
 	return func(f *flag.FlagSet, n string) {
 		f.Var((*timeFlag)(t), n, help)
 	}
+}
+
+const (
+	projectShortNameParam   = "shortname"
+	projectNameParam        = "name"
+	projectTagsParam        = "tags"
+	projectDescriptionParam = "description"
+	projectCreateTimeParam  = "created"
+	projectHomepageParam    = "url"
+	projectVCSTypeParam     = "vcs"
+	projectVCSURLParam      = "vcsurl"
+)
+
+func updateForm(proj *catalog.Project, form url.Values) error {
+	ferr := make(formError)
+	if v := form.Get(projectShortNameParam); v != "" {
+		proj.ShortName = v
+	}
+	if v := form.Get(projectNameParam); v != "" {
+		proj.Name = v
+	}
+	if v := form[projectTagsParam]; len(v) > 0 {
+		proj.Tags = catalog.ParseTagSet(v[0])
+	}
+	if v := form[projectDescriptionParam]; len(v) > 0 {
+		proj.Description = v[0]
+	}
+	if v := form.Get(projectCreateTimeParam); v != "" {
+		// TODO
+	}
+	if v := form[projectHomepageParam]; len(v) > 0 {
+		proj.Homepage = v[0]
+	}
+	if v := form[projectVCSTypeParam]; len(v) > 0 {
+		v := v[0]
+		switch {
+		case v == "":
+			proj.VCS = nil
+		case isValidVCSType(v):
+			if proj.VCS == nil {
+				proj.VCS = new(catalog.VCSInfo)
+			}
+			proj.VCS.Type = v
+		default:
+			ferr[projectVCSTypeParam] = badVCSError(v)
+		}
+	}
+	if v := form[projectVCSURLParam]; len(v) > 0 {
+		v := v[0]
+		if proj.VCS == nil {
+			ferr[projectVCSURLParam] = errDanglingVCSURL
+		} else {
+			proj.VCS.URL = v
+		}
+	}
+	if len(ferr) > 0 {
+		return ferr
+	}
+	return nil
+}
+
+type formError map[string]error
+
+func (e formError) Error() string {
+	msg, n := "", 0
+	for _, err := range e {
+		if err != nil {
+			if n == 0 {
+				msg = err.Error()
+			}
+			n++
+		}
+	}
+	switch n {
+	case 0:
+		return "0 errors"
+	case 1:
+		return msg
+	case 2:
+		return msg + " (and 1 other error)"
+	}
+	return fmt.Sprintf("%s (and %d other errors)", msg, n-1)
 }

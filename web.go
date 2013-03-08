@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"html/template"
 	"log"
 	"net/http"
@@ -15,7 +16,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var tmpl *template.Template
+var (
+	router *mux.Router
+	tmpl   *template.Template
+)
 
 func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset := cmd.FlagSet(set)
@@ -33,17 +37,18 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		return err
 	}
 
-	r := mux.NewRouter()
-	r.Handle("/", &handler{cat, handleIndex}).Name("index")
-	r.Handle("/project/{project}", &handler{cat, handleProject}).Name("project")
-	r.Handle("/tag/", &handler{cat, handleTagIndex}).Name("tagindex")
-	r.Handle("/tag/{tag}", &handler{cat, handleTag}).Name("tag")
-	staticDirRoute(r, "/css/", filepath.Join(*staticDir, "css")).Name("css")
-	staticDirRoute(r, "/img/", filepath.Join(*staticDir, "img")).Name("img")
-	staticDirRoute(r, "/js/", filepath.Join(*staticDir, "js")).Name("js")
+	router = mux.NewRouter()
+	router.Handle("/", &handler{cat, handleIndex}).Name("index")
+	router.Handle("/project/{project}", &handler{cat, handleProject}).Methods("GET").Name("project")
+	router.Handle("/project/{project}", &handler{cat, handleUpdateProject}).Methods("POST").Name("updateproject")
+	router.Handle("/tag/", &handler{cat, handleTagIndex}).Name("tagindex")
+	router.Handle("/tag/{tag}", &handler{cat, handleTag}).Name("tag")
+	staticDirRoute(router, "/css/", filepath.Join(*staticDir, "css")).Name("css")
+	staticDirRoute(router, "/img/", filepath.Join(*staticDir, "img")).Name("img")
+	staticDirRoute(router, "/js/", filepath.Join(*staticDir, "js")).Name("js")
 
 	tmpl = template.New("")
-	webapp.AddFuncs(tmpl, r)
+	webapp.AddFuncs(tmpl, router)
 	tmpl.Funcs(template.FuncMap{
 		"prettyurl": prettyurl,
 		"ellipsis":  ellipsis,
@@ -52,7 +57,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		return err
 	}
 
-	return http.ListenAndServe(*addr, r)
+	return http.ListenAndServe(*addr, router)
 }
 
 func handleIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
@@ -82,6 +87,39 @@ func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request
 		return &webapp.NotFound{req.URL}
 	}
 	return tmpl.ExecuteTemplate(w, "project.html", proj)
+}
+
+func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+	sn := mux.Vars(req)["project"]
+	if err := req.ParseForm(); err != nil {
+		// TODO(light): different HTTP code?
+		return err
+	}
+
+	proj, err := cat.GetProject(sn)
+	if err != nil {
+		return err
+	} else if proj == nil {
+		return &webapp.NotFound{req.URL}
+	}
+
+	if err := updateForm(proj, req.Form); err != nil {
+		return err
+	}
+
+	if err := cat.PutProject(proj); err != nil {
+		return err
+	}
+	r := router.Get("project")
+	if r == nil {
+		return errors.New("bad route")
+	}
+	u, err := r.URLPath("project", proj.ShortName)
+	if err != nil {
+		return err
+	}
+	http.Redirect(w, req, u.Path, http.StatusFound)
+	return nil
 }
 
 func handleTagIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {

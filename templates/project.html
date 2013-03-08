@@ -9,10 +9,8 @@
     <div class="container">
         <h1>{{.Name}}</h1>
         <div class="row">
-            <div class="span6">
+            <div id="view">
                 {{with .Description}}<p>{{.}}</p>{{end}}
-            </div>
-            <div class="span6">
                 <dl class="dl-horizontal">
                     <dt>Short Name</dt><dd>{{.ShortName}}</dd>
                     {{with .Homepage}}<dt>Homepage</dt><dd><a href="{{.}}" title="{{.|prettyurl}}">{{.|prettyurl|ellipsis 25}}</a></dd>{{end}}
@@ -25,9 +23,42 @@
                     <dt>Catalogued</dt><dd>{{.CatalogTime}}</dd>
                     <dt>ID</dt><dd>{{.ID}}</dd>
                 </dl>
+                <a id="editbtn" href="#" class="btn">Edit</a>
             </div>
+            <form id="edit" class="span6" method="POST" action="{{path "updateproject" "project" .ShortName}}" style="display:none">
+                <fieldset>
+                    <label>Name</label>
+                    <input type="text" class="span2" name="name" value="{{.Name}}">
+                    <label>Short Name</label>
+                    <input type="text" class="span1" name="shortname" value="{{.ShortName}}">
+                    <label>Description</label>
+                    <textarea name="description" class="span4" rows="4">{{.Description}}</textarea>
+                    <label>Homepage</label>
+                    <input type="text" class="span3" name="url" value="{{.Homepage}}">
+                    <label>Tags</label>
+                    <input type="text" class="span3" name="tags" value="{{.Tags}}">
+                    <label>VCS</label>
+                    {{/* TODO: selected option */}}
+                    <select name="vcs">
+                        <option value="">None</option>
+                        <option value="cvs">CVS</option>
+                        <option value="svn">Subversion</option>
+                        <option value="hg">Mercurial</option>
+                        <option value="git">Git</option>
+                        <option value="bzr">Bazaar</option>
+                        <option value="darcs">Darcs</option>
+                    </select>
+                    <label>VCS URL</label>
+                    <input type="text" class="span3" name="url" value="{{with .VCS}}{{.URL}}{{end}}">
+                    <div class="form-actions">
+                        <button id="editsave" type="submit" class="btn btn-primary">Save</button>
+                        <button id="editcancel" class="btn">Cancel</button>
+                    </div>
+                </fieldset>
+            </form>
         </div>
     </div>
 {{template "js.html"}}
+<script type="text/javascript" src="{{path "js" "path" "project.js"}}"></script>
 </body>
 </html>
