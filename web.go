@@ -103,7 +103,10 @@ func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 		return &webapp.NotFound{req.URL}
 	}
 
-	if err := updateForm(proj, req.Form); err != nil {
+	delete(req.Form, "addtags")
+	delete(req.Form, "deltags")
+	delete(req.Form, "path")
+	if err := updateForm(proj, req.Form, ""); err != nil {
 		return err
 	}
 
