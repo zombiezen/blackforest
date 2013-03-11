@@ -52,6 +52,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	tmpl.Funcs(template.FuncMap{
 		"prettyurl": prettyurl,
 		"ellipsis":  ellipsis,
+		"stringeq":  func(a, b string) bool { return a == b },
 	})
 	if _, err := tmpl.ParseGlob(filepath.Join(*templateDir, "*.html")); err != nil {
 		return err

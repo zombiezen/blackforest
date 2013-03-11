@@ -38,15 +38,14 @@
                     <label>Tags</label>
                     <input type="text" class="span3" name="tags" value="{{.Tags}}">
                     <label>VCS</label>
-                    {{/* TODO: selected option */}}
                     <select name="vcs">
-                        <option value="">None</option>
-                        <option value="cvs">CVS</option>
-                        <option value="svn">Subversion</option>
-                        <option value="hg">Mercurial</option>
-                        <option value="git">Git</option>
-                        <option value="bzr">Bazaar</option>
-                        <option value="darcs">Darcs</option>
+                        <option value=""{{with .VCS}}{{if stringeq .Type ""}} selected{{end}}{{end}}>None</option>
+                        <option value="cvs"{{with .VCS}}{{if stringeq .Type "cvs"}} selected{{end}}{{end}}>CVS</option>
+                        <option value="svn"{{with .VCS}}{{if stringeq .Type "svn"}} selected{{end}}{{end}}>Subversion</option>
+                        <option value="hg"{{with .VCS}}{{if stringeq .Type "hg"}} selected{{end}}{{end}}>Mercurial</option>
+                        <option value="git"{{with .VCS}}{{if stringeq .Type "git"}} selected{{end}}{{end}}>Git</option>
+                        <option value="bzr"{{with .VCS}}{{if stringeq .Type "bzr"}} selected{{end}}{{end}}>Bazaar</option>
+                        <option value="darcs"{{with .VCS}}{{if stringeq .Type "darcs"}} selected{{end}}{{end}}>Darcs</option>
                     </select>
                     <label>VCS URL</label>
                     <input type="text" class="span3" name="url" value="{{with .VCS}}{{.URL}}{{end}}">
