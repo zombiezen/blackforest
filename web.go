@@ -39,7 +39,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	router = mux.NewRouter()
 	router.Handle("/", &handler{cat, handleIndex}).Name("index")
 	router.Handle("/project/", &handler{cat, handleCreateProject}).Methods("PUT").Name("createproject")
-	router.Handle("/project/{project}", &handler{cat, handleProject}).Methods("GET").Name("project")
+	router.Handle("/project/{project}", &handler{cat, handleProject}).Methods("GET", "HEAD").Name("project")
 	router.Handle("/project/{project}", &handler{cat, handleUpdateProject}).Methods("POST").Name("updateproject")
 	router.Handle("/tag/", &handler{cat, handleTagIndex}).Name("tagindex")
 	router.Handle("/tag/{tag}", &handler{cat, handleTag}).Name("tag")
@@ -180,15 +180,23 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	path := req.URL.Path
+	method, path := req.Method, req.URL.Path
 	rb := new(webapp.ResponseBuffer)
 	err := h.Func(h.Catalog, rb, req)
 	if err == nil {
 		if rb.HeaderSent().Get(webapp.HeaderContentLength) == "" {
 			webapp.ContentLength(w.Header(), rb.Size())
 		}
-		if err := rb.Copy(w); err != nil {
-			log.Printf("%s send error: %v", path, err)
+		if method == "HEAD" {
+			h := w.Header()
+			for k, v := range rb.HeaderSent() {
+				h[k] = v
+			}
+			w.WriteHeader(rb.StatusCode())
+		} else {
+			if err := rb.Copy(w); err != nil {
+				log.Printf("%s send error: %v", path, err)
+			}
 		}
 	} else if _, ok := err.(*webapp.NotFound); ok {
 		http.NotFound(w, req)
