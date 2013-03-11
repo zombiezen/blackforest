@@ -41,6 +41,34 @@ func cmdUpdate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	return nil
 }
 
+type projectForm struct {
+	Name        string         `schema:"name"`
+	ShortName   string         `schema:"shortname"`
+	Tags        catalog.TagSet `schema:"tags"`
+	AddTags     catalog.TagSet `schema:"addtags"`
+	DelTags     catalog.TagSet `schema:"deltags"`
+	Description string         `schema:"description"`
+	Path        string         `schema:"path"`
+	CreateTime  time.Time      `schema:"created"`
+	Homepage    string         `schema:"url"`
+	VCSType     string         `schema:"vcs"`
+	VCSURL      string         `schema:"vcsurl"`
+}
+
+const (
+	projectFormNameKey        = "name"
+	projectFormShortNameKey   = "shortname"
+	projectFormTagsKey        = "tags"
+	projectFormAddTagsKey     = "addtags"
+	projectFormDelTagsKey     = "deltags"
+	projectFormDescriptionKey = "description"
+	projectFormPathKey        = "path"
+	projectFormCreateTimeKey  = "created"
+	projectFormHomepageKey    = "url"
+	projectFormVCSTypeKey     = "vcs"
+	projectFormVCSURLKey      = "vcsurl"
+)
+
 func createForm(form map[string][]string, host string) (*catalog.Project, error) {
 	now := time.Now()
 	id, err := catalog.GenerateID()
@@ -69,19 +97,7 @@ func createForm(form map[string][]string, host string) (*catalog.Project, error)
 }
 
 func updateForm(proj *catalog.Project, form map[string][]string, host string) error {
-	var f struct {
-		Name        string         `form:"name"`
-		ShortName   string         `form:"shortname"`
-		Tags        catalog.TagSet `form:"tags"`
-		AddTags     catalog.TagSet `form:"addtags"`
-		DelTags     catalog.TagSet `form:"deltags"`
-		Description string         `form:"description"`
-		Path        string         `form:"path"`
-		CreateTime  time.Time      `form:"created"`
-		Homepage    string         `form:"url"`
-		VCSType     string         `form:"vcs"`
-		VCSURL      string         `form:"vcsurl"`
-	}
+	var f projectForm
 	if err := formDecode(&f, form); err != nil {
 		return err
 	}
