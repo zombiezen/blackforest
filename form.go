@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"reflect"
@@ -9,6 +10,8 @@ import (
 
 	"bitbucket.org/zombiezen/glados/catalog"
 )
+
+var errRequiredField = errors.New("required field empty")
 
 const (
 	formTag     = "form"
@@ -149,4 +152,12 @@ func convertTime(s string) (interface{}, error) {
 
 func convertTagSet(s string) (interface{}, error) {
 	return catalog.ParseTagSet(s), nil
+}
+
+func isFormValueEmpty(form map[string][]string, key string) bool {
+	v := form[key]
+	if len(v) == 0 {
+		return true
+	}
+	return v[0] == ""
 }

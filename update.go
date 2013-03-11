@@ -41,6 +41,33 @@ func cmdUpdate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	return nil
 }
 
+func createForm(form map[string][]string, host string) (*catalog.Project, error) {
+	now := time.Now()
+	id, err := catalog.GenerateID()
+	if err != nil {
+		return nil, err
+	}
+	proj := &catalog.Project{
+		ID:          id,
+		CreateTime:  now,
+		CatalogTime: now,
+	}
+
+	reqErr := make(formError)
+	if isFormValueEmpty(form, "shortname") {
+		reqErr["shortname"] = errRequiredField
+	}
+	if isFormValueEmpty(form, "name") {
+		reqErr["name"] = errRequiredField
+	}
+	if len(reqErr) > 0 {
+		return nil, reqErr
+	}
+
+	err = updateForm(proj, form, host)
+	return proj, err
+}
+
 func updateForm(proj *catalog.Project, form map[string][]string, host string) error {
 	var f struct {
 		Name        string         `form:"name"`

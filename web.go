@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"html/template"
 	"log"
 	"net/http"
@@ -39,6 +38,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 
 	router = mux.NewRouter()
 	router.Handle("/", &handler{cat, handleIndex}).Name("index")
+	router.Handle("/project/", &handler{cat, handleCreateProject}).Methods("PUT").Name("createproject")
 	router.Handle("/project/{project}", &handler{cat, handleProject}).Methods("GET").Name("project")
 	router.Handle("/project/{project}", &handler{cat, handleUpdateProject}).Methods("POST").Name("updateproject")
 	router.Handle("/tag/", &handler{cat, handleTagIndex}).Name("tagindex")
@@ -89,6 +89,27 @@ func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request
 	return tmpl.ExecuteTemplate(w, "project.html", proj)
 }
 
+func handleCreateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+	if err := req.ParseForm(); err != nil {
+		// TODO(light): different HTTP code?
+		return err
+	}
+
+	delete(req.Form, "addtags")
+	delete(req.Form, "deltags")
+	delete(req.Form, "path")
+	proj, err := createForm(req.Form, "")
+	if err != nil {
+		// TODO(light): handle form errors
+		return err
+	}
+	if err := cat.PutProject(proj); err != nil {
+		return err
+	}
+	http.Redirect(w, req, routerPath("project", "project", proj.ShortName), http.StatusFound)
+	return nil
+}
+
 func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
 	sn := mux.Vars(req)["project"]
 	if err := req.ParseForm(); err != nil {
@@ -107,21 +128,14 @@ func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 	delete(req.Form, "deltags")
 	delete(req.Form, "path")
 	if err := updateForm(proj, req.Form, ""); err != nil {
+		// TODO(light): handle form errors
 		return err
 	}
 
 	if err := cat.PutProject(proj); err != nil {
 		return err
 	}
-	r := router.Get("project")
-	if r == nil {
-		return errors.New("bad route")
-	}
-	u, err := r.URLPath("project", proj.ShortName)
-	if err != nil {
-		return err
-	}
-	http.Redirect(w, req, u.Path, http.StatusFound)
+	http.Redirect(w, req, routerPath("project", "project", proj.ShortName), http.StatusFound)
 	return nil
 }
 
@@ -243,6 +257,14 @@ type byTagCount []tagInfo
 func (t byTagCount) Len() int           { return len(t) }
 func (t byTagCount) Less(i, j int) bool { return t[i].Count > t[j].Count }
 func (t byTagCount) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
+
+func routerPath(name string, pairs ...string) string {
+	u, err := router.Get(name).URLPath(pairs...)
+	if err != nil {
+		panic(err)
+	}
+	return u.Path
+}
 
 func prettyurl(u string) string {
 	if uu, err := url.Parse(u); err == nil {
