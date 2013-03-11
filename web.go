@@ -23,7 +23,7 @@ var (
 
 func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset := cmd.FlagSet(set)
-	addr := fset.String("listen", ":8080", "address to listen for HTTP")
+	addr := fset.String("listen", "localhost:10710", "address to listen for HTTP")
 	templateDir := fset.String("templatedir", "templates", "template directory")
 	staticDir := fset.String("staticdir", "static", "static directory")
 	parseFlags(fset, args)
