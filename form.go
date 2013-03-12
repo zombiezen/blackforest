@@ -54,7 +54,7 @@ func convertTagSet(s string) (reflect.Value, error) {
 }
 
 func hasFormKey(form map[string][]string, key string) bool {
-	return len(form[key]) == 0
+	return len(form[key]) > 0
 }
 
 func isFormValueEmpty(form map[string][]string, key string) bool {
