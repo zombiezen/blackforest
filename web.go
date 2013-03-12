@@ -84,7 +84,7 @@ func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request
 	if err != nil {
 		return err
 	} else if proj == nil {
-		return &webapp.NotFound{req.URL}
+		return webapp.NotFound
 	}
 	return tmpl.ExecuteTemplate(w, "project.html", proj)
 }
@@ -100,7 +100,7 @@ func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 	if err != nil {
 		return err
 	} else if proj == nil {
-		return &webapp.NotFound{req.URL}
+		return webapp.NotFound
 	}
 
 	delete(req.Form, "addtags")
@@ -138,7 +138,7 @@ func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) er
 
 	names := cache.FindTag(tag)
 	if len(names) == 0 {
-		return &webapp.NotFound{req.URL}
+		return webapp.NotFound
 	}
 	sort.Strings(names)
 	projects := make([]*catalog.Project, 0, len(names))
@@ -176,7 +176,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if err := rb.Copy(w); err != nil {
 			log.Printf("%s send error: %v", path, err)
 		}
-	} else if _, ok := err.(*webapp.NotFound); ok {
+	} else if webapp.IsNotFound(err) {
 		http.NotFound(w, req)
 	} else {
 		log.Printf("%s error: %v", path, err)
