@@ -88,3 +88,21 @@ func TestUpdateForm(t *testing.T) {
 		}
 	}
 }
+
+func TestSanitizeName(t *testing.T) {
+	tests := []struct {
+		Name      string
+		ShortName string
+	}{
+		{"", ""},
+		{"abc-0_9", "abc-0_9"},
+		{"Hello World", "hello-world"},
+		{"Hello, World!", "hello_-world_"},
+	}
+	for _, test := range tests {
+		sn := sanitizeName(test.Name)
+		if sn != test.ShortName {
+			t.Errorf("sanitizeName(%q) = %q; want %q", test.Name, sn, test.ShortName)
+		}
+	}
+}
