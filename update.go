@@ -38,7 +38,7 @@ func cmdCreate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		form[projectFormShortNameKey] = []string{sanitizeName(name)}
 	}
 
-	proj, err := createForm(form, host)
+	proj, err := createProjectForm(form, host)
 	if err != nil {
 		return err
 	}
@@ -69,27 +69,13 @@ func cmdUpdate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := updateForm(proj, form, host); err != nil {
+	if err := updateProjectForm(proj, form, host); err != nil {
 		return err
 	}
 	if err := cat.PutProject(proj); err != nil {
 		return err
 	}
 	return nil
-}
-
-type projectForm struct {
-	Name        string         `schema:"name"`
-	ShortName   string         `schema:"shortname"`
-	Tags        catalog.TagSet `schema:"tags"`
-	AddTags     catalog.TagSet `schema:"addtags"`
-	DelTags     catalog.TagSet `schema:"deltags"`
-	Description nullString     `schema:"description"`
-	Path        nullString     `schema:"path"`
-	CreateTime  *time.Time     `schema:"created"`
-	Homepage    nullString     `schema:"url"`
-	VCSType     nullString     `schema:"vcs"`
-	VCSURL      nullString     `schema:"vcsurl"`
 }
 
 const (
@@ -106,41 +92,21 @@ const (
 	projectFormVCSURLKey      = "vcsurl"
 )
 
-func createForm(form map[string][]string, host string) (*catalog.Project, error) {
-	now := time.Now()
-	id, err := catalog.GenerateID()
-	if err != nil {
-		return nil, err
-	}
-	proj := &catalog.Project{
-		ID:          id,
-		CreateTime:  now,
-		CatalogTime: now,
-	}
-
-	reqErr := make(schema.MultiError)
-	if isFormValueEmpty(form, projectFormShortNameKey) {
-		reqErr[projectFormShortNameKey] = errRequiredField
-	}
-	if isFormValueEmpty(form, projectFormNameKey) {
-		reqErr[projectFormNameKey] = errRequiredField
-	}
-	if len(reqErr) > 0 {
-		return nil, reqErr
-	}
-
-	delete(form, projectFormAddTagsKey)
-	delete(form, projectFormDelTagsKey)
-	err = updateForm(proj, form, host)
-	return proj, err
+type projectForm struct {
+	Name        string         `schema:"name"`
+	ShortName   string         `schema:"shortname"`
+	Tags        catalog.TagSet `schema:"tags"`
+	AddTags     catalog.TagSet `schema:"addtags"`
+	DelTags     catalog.TagSet `schema:"deltags"`
+	Description nullString     `schema:"description"`
+	Path        nullString     `schema:"path"`
+	CreateTime  *time.Time     `schema:"created"`
+	Homepage    nullString     `schema:"url"`
+	VCSType     nullString     `schema:"vcs"`
+	VCSURL      nullString     `schema:"vcsurl"`
 }
 
-func updateForm(proj *catalog.Project, form map[string][]string, host string) error {
-	var f projectForm
-	if err := decoder.Decode(&f, form); err != nil {
-		return err
-	}
-
+func (f *projectForm) Update(proj *catalog.Project, host string) error {
 	if f.Tags != nil && (f.AddTags != nil || f.DelTags != nil) {
 		return schema.MultiError{projectFormTagsKey: errTagsMutexFlags}
 	}
@@ -208,6 +174,43 @@ func updateForm(proj *catalog.Project, form map[string][]string, host string) er
 		return ferr
 	}
 	return nil
+}
+
+func createProjectForm(form map[string][]string, host string) (*catalog.Project, error) {
+	now := time.Now()
+	id, err := catalog.GenerateID()
+	if err != nil {
+		return nil, err
+	}
+	proj := &catalog.Project{
+		ID:          id,
+		CreateTime:  now,
+		CatalogTime: now,
+	}
+
+	reqErr := make(schema.MultiError)
+	if isFormValueEmpty(form, projectFormShortNameKey) {
+		reqErr[projectFormShortNameKey] = errRequiredField
+	}
+	if isFormValueEmpty(form, projectFormNameKey) {
+		reqErr[projectFormNameKey] = errRequiredField
+	}
+	if len(reqErr) > 0 {
+		return nil, reqErr
+	}
+
+	delete(form, projectFormAddTagsKey)
+	delete(form, projectFormDelTagsKey)
+	err = updateProjectForm(proj, form, host)
+	return proj, err
+}
+
+func updateProjectForm(proj *catalog.Project, form map[string][]string, host string) error {
+	var f projectForm
+	if err := decoder.Decode(&f, form); err != nil {
+		return err
+	}
+	return f.Update(proj, host)
 }
 
 func sanitizeName(name string) string {

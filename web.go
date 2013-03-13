@@ -99,7 +99,7 @@ func handleCreateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 	delete(req.Form, projectFormAddTagsKey)
 	delete(req.Form, projectFormDelTagsKey)
 	delete(req.Form, projectFormPathKey)
-	proj, err := createForm(req.Form, "")
+	proj, err := createProjectForm(req.Form, "")
 	if err != nil {
 		// TODO(light): handle form errors
 		return err
@@ -128,7 +128,7 @@ func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 	delete(req.Form, projectFormAddTagsKey)
 	delete(req.Form, projectFormDelTagsKey)
 	delete(req.Form, projectFormPathKey)
-	if err := updateForm(proj, req.Form, ""); err != nil {
+	if err := updateProjectForm(proj, req.Form, ""); err != nil {
 		// TODO(light): handle form errors
 		return err
 	}

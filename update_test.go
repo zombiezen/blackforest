@@ -41,7 +41,7 @@ func TestUpdateForm(t *testing.T) {
 	magicTime := time.Date(2013, 2, 7, 10, 51, 13, 0, time.FixedZone("PST", int(-8*time.Hour/time.Second)))
 
 	proj := new(catalog.Project)
-	err := updateForm(proj, map[string][]string{
+	err := updateProjectForm(proj, map[string][]string{
 		"name":        {"Hello, World!"},
 		"shortname":   {"hello"},
 		"tags":        {"foo,bar,foo"},
