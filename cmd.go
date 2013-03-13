@@ -316,68 +316,6 @@ func importProject(cat catalog.Catalog, r io.Reader) error {
 	return cat.PutProject(&proj)
 }
 
-const rfc3339example = "2006-01-02T15:04:05-07:00"
-
-func cmdCreate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
-	now := time.Now()
-	proj := &catalog.Project{
-		VCS:         new(catalog.VCSInfo),
-		CatalogTime: now,
-		CreateTime:  now,
-	}
-	var hostInfo catalog.HostInfo
-
-	fset := cmd.FlagSet(set)
-	fset.StringVar(&proj.ShortName, "shortname", "", "identifier for project (default is lowercased full name)")
-	fset.Var((*tagSetFlag)(&proj.Tags), "tags", "comma-separated tags to assign to the new project")
-	fset.StringVar(&hostInfo.Path, "path", "", "path of working copy")
-	fset.StringVar(&proj.Homepage, "url", "", "project homepage")
-	fset.StringVar(&proj.VCS.Type, "vcs", "", "type of VCS for project")
-	fset.StringVar(&proj.VCS.URL, "vcsurl", "", "project VCS URL")
-	fset.Var((*timeFlag)(&proj.CreateTime), "created", "project creation date, formatted as RFC3339 ("+rfc3339example+")")
-	parseFlags(fset, args)
-	if fset.NArg() != 1 {
-		cmd.PrintSynopsis(set)
-		return exitError(exitUsage)
-	}
-	cat := requireCatalog()
-
-	name := strings.TrimSpace(fset.Arg(0))
-	if len(name) == 0 {
-		return errEmptyName
-	}
-	proj.Name = name
-	proj.Tags.Unique()
-	id, err := catalog.GenerateID()
-	if err != nil {
-		return err
-	}
-	proj.ID = id
-	if proj.ShortName == "" {
-		proj.ShortName = sanitizeName(name)
-	}
-	if proj.VCS.Type == "" {
-		proj.VCS = nil
-	} else if !isValidVCSType(proj.VCS.Type) {
-		return badVCSError(proj.VCS.Type)
-	}
-	if hostInfo.Path != "" {
-		absPath, err := filepath.Abs(filepath.Clean(hostInfo.Path))
-		if err != nil {
-			return err
-		}
-		hostInfo.Path = absPath
-		if host == "" {
-			return errHostNotSetPathGiven
-		}
-		proj.PerHost = map[string]*catalog.HostInfo{host: &hostInfo}
-	}
-	if err := cat.PutProject(proj); err != nil {
-		return err
-	}
-	return nil
-}
-
 func cmdRename(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset := cmd.FlagSet(set)
 	parseFlags(fset, args)

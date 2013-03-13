@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"html/template"
 	"log"
 	"net/http"
@@ -23,7 +22,7 @@ var (
 
 func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset := cmd.FlagSet(set)
-	addr := fset.String("listen", ":8080", "address to listen for HTTP")
+	addr := fset.String("listen", "localhost:10710", "address to listen for HTTP")
 	templateDir := fset.String("templatedir", "templates", "template directory")
 	staticDir := fset.String("staticdir", "static", "static directory")
 	parseFlags(fset, args)
@@ -39,7 +38,8 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 
 	router = mux.NewRouter()
 	router.Handle("/", &handler{cat, handleIndex}).Name("index")
-	router.Handle("/project/{project}", &handler{cat, handleProject}).Methods("GET").Name("project")
+	router.Handle("/project/", &handler{cat, handleCreateProject}).Methods("PUT").Name("createproject")
+	router.Handle("/project/{project}", &handler{cat, handleProject}).Methods("GET", "HEAD").Name("project")
 	router.Handle("/project/{project}", &handler{cat, handleUpdateProject}).Methods("POST").Name("updateproject")
 	router.Handle("/tag/", &handler{cat, handleTagIndex}).Name("tagindex")
 	router.Handle("/tag/{tag}", &handler{cat, handleTag}).Name("tag")
@@ -52,6 +52,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	tmpl.Funcs(template.FuncMap{
 		"prettyurl": prettyurl,
 		"ellipsis":  ellipsis,
+		"stringeq":  func(a, b string) bool { return a == b },
 	})
 	if _, err := tmpl.ParseGlob(filepath.Join(*templateDir, "*.html")); err != nil {
 		return err
@@ -89,6 +90,27 @@ func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request
 	return tmpl.ExecuteTemplate(w, "project.html", proj)
 }
 
+func handleCreateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+	if err := req.ParseForm(); err != nil {
+		// TODO(light): different HTTP code?
+		return err
+	}
+
+	delete(req.Form, projectFormAddTagsKey)
+	delete(req.Form, projectFormDelTagsKey)
+	delete(req.Form, projectFormPathKey)
+	proj, err := createForm(req.Form, "")
+	if err != nil {
+		// TODO(light): handle form errors
+		return err
+	}
+	if err := cat.PutProject(proj); err != nil {
+		return err
+	}
+	http.Redirect(w, req, routerPath("project", "project", proj.ShortName), http.StatusFound)
+	return nil
+}
+
 func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
 	sn := mux.Vars(req)["project"]
 	if err := req.ParseForm(); err != nil {
@@ -103,25 +125,18 @@ func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 		return webapp.NotFound
 	}
 
-	delete(req.Form, "addtags")
-	delete(req.Form, "deltags")
-	delete(req.Form, "path")
+	delete(req.Form, projectFormAddTagsKey)
+	delete(req.Form, projectFormDelTagsKey)
+	delete(req.Form, projectFormPathKey)
 	if err := updateForm(proj, req.Form, ""); err != nil {
+		// TODO(light): handle form errors
 		return err
 	}
 
 	if err := cat.PutProject(proj); err != nil {
 		return err
 	}
-	r := router.Get("project")
-	if r == nil {
-		return errors.New("bad route")
-	}
-	u, err := r.URLPath("project", proj.ShortName)
-	if err != nil {
-		return err
-	}
-	http.Redirect(w, req, u.Path, http.StatusFound)
+	http.Redirect(w, req, routerPath("project", "project", proj.ShortName), http.StatusFound)
 	return nil
 }
 
@@ -166,15 +181,23 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	path := req.URL.Path
+	method, path := req.Method, req.URL.Path
 	rb := new(webapp.ResponseBuffer)
 	err := h.Func(h.Catalog, rb, req)
 	if err == nil {
 		if rb.HeaderSent().Get(webapp.HeaderContentLength) == "" {
 			webapp.ContentLength(w.Header(), rb.Size())
 		}
-		if err := rb.Copy(w); err != nil {
-			log.Printf("%s send error: %v", path, err)
+		if method == "HEAD" {
+			h := w.Header()
+			for k, v := range rb.HeaderSent() {
+				h[k] = v
+			}
+			w.WriteHeader(rb.StatusCode())
+		} else {
+			if err := rb.Copy(w); err != nil {
+				log.Printf("%s send error: %v", path, err)
+			}
 		}
 	} else if webapp.IsNotFound(err) {
 		http.NotFound(w, req)
@@ -243,6 +266,14 @@ type byTagCount []tagInfo
 func (t byTagCount) Len() int           { return len(t) }
 func (t byTagCount) Less(i, j int) bool { return t[i].Count > t[j].Count }
 func (t byTagCount) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
+
+func routerPath(name string, pairs ...string) string {
+	u, err := router.Get(name).URLPath(pairs...)
+	if err != nil {
+		panic(err)
+	}
+	return u.Path
+}
 
 func prettyurl(u string) string {
 	if uu, err := url.Parse(u); err == nil {
