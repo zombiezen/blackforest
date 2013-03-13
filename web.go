@@ -96,9 +96,9 @@ func handleCreateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 		return err
 	}
 
-	delete(req.Form, "addtags")
-	delete(req.Form, "deltags")
-	delete(req.Form, "path")
+	delete(req.Form, projectFormAddTagsKey)
+	delete(req.Form, projectFormDelTagsKey)
+	delete(req.Form, projectFormPathKey)
 	proj, err := createForm(req.Form, "")
 	if err != nil {
 		// TODO(light): handle form errors
@@ -125,9 +125,9 @@ func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 		return &webapp.NotFound{req.URL}
 	}
 
-	delete(req.Form, "addtags")
-	delete(req.Form, "deltags")
-	delete(req.Form, "path")
+	delete(req.Form, projectFormAddTagsKey)
+	delete(req.Form, projectFormDelTagsKey)
+	delete(req.Form, projectFormPathKey)
 	if err := updateForm(proj, req.Form, ""); err != nil {
 		// TODO(light): handle form errors
 		return err
