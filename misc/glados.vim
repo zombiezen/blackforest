@@ -27,6 +27,10 @@ function! GladosPath(project)
   return substitute(system("glados path ".shellescape(a:project)), '[\r\n]\+$', '', '')
 endfunction
 
-command! -bar -nargs=1 Gcd exec 'cd '.escape(GladosPath(<f-args>), ' \')
+function! s:CompleteGcd(ArgLead, CmdLine, CursorPos)
+  return system("glados ls")
+endfunction
+
+command! -bar -nargs=1 -complete=custom,s:CompleteGcd Gcd exec 'cd '.escape(GladosPath(<f-args>), ' \')
 
 " vim: ft=vim et ts=8 sts=2 sw=2 tw=80
