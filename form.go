@@ -18,6 +18,12 @@ var decoder = schema.NewDecoder()
 func init() {
 	decoder.RegisterErrorConverter(time.Time{}, convertTime)
 	decoder.RegisterErrorConverter(catalog.TagSet{}, convertTagSet)
+	decoder.RegisterConverter(nullString{}, convertNullString)
+}
+
+type nullString struct {
+	String string
+	Valid  bool
 }
 
 type formFlag struct {
@@ -53,8 +59,8 @@ func convertTagSet(s string) (reflect.Value, error) {
 	return reflect.ValueOf(catalog.ParseTagSet(s)), nil
 }
 
-func hasFormKey(form map[string][]string, key string) bool {
-	return len(form[key]) > 0
+func convertNullString(s string) reflect.Value {
+	return reflect.ValueOf(nullString{String: s, Valid: true})
 }
 
 func isFormValueEmpty(form map[string][]string, key string) bool {

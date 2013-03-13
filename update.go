@@ -84,12 +84,12 @@ type projectForm struct {
 	Tags        catalog.TagSet `schema:"tags"`
 	AddTags     catalog.TagSet `schema:"addtags"`
 	DelTags     catalog.TagSet `schema:"deltags"`
-	Description string         `schema:"description"`
-	Path        string         `schema:"path"`
-	CreateTime  time.Time      `schema:"created"`
-	Homepage    string         `schema:"url"`
-	VCSType     string         `schema:"vcs"`
-	VCSURL      string         `schema:"vcsurl"`
+	Description nullString     `schema:"description"`
+	Path        nullString     `schema:"path"`
+	CreateTime  *time.Time     `schema:"created"`
+	Homepage    nullString     `schema:"url"`
+	VCSType     nullString     `schema:"vcs"`
+	VCSURL      nullString     `schema:"vcsurl"`
 }
 
 const (
@@ -141,7 +141,7 @@ func updateForm(proj *catalog.Project, form map[string][]string, host string) er
 		return err
 	}
 
-	if hasFormKey(form, projectFormTagsKey) && (hasFormKey(form, projectFormAddTagsKey) || hasFormKey(form, projectFormDelTagsKey)) {
+	if f.Tags != nil && (f.AddTags != nil || f.DelTags != nil) {
 		return schema.MultiError{projectFormTagsKey: errTagsMutexFlags}
 	}
 
@@ -152,7 +152,7 @@ func updateForm(proj *catalog.Project, form map[string][]string, host string) er
 	if f.ShortName != "" {
 		proj.ShortName = f.ShortName
 	}
-	if hasFormKey(form, projectFormTagsKey) {
+	if f.Tags != nil {
 		proj.Tags = f.Tags
 		proj.Tags.Unique()
 	}
@@ -162,44 +162,46 @@ func updateForm(proj *catalog.Project, form map[string][]string, host string) er
 	for _, tag := range f.DelTags {
 		proj.Tags.Remove(tag)
 	}
-	if hasFormKey(form, projectFormDescriptionKey) {
-		proj.Description = f.Description
+	if f.Description.Valid {
+		proj.Description = f.Description.String
 	}
-	if hasFormKey(form, projectFormPathKey) {
+	if f.Path.Valid {
+		path := f.Path.String
 		if host == "" {
 			ferr[projectFormPathKey] = errHostNotSetPathGiven
-		} else if f.Path == "" {
+		} else if path == "" {
 			proj.SetPath(host, "")
-		} else if p, err := filepath.Abs(filepath.Clean(f.Path)); err == nil {
+		} else if p, err := filepath.Abs(filepath.Clean(path)); err == nil {
 			proj.SetPath(host, p)
 		} else {
 			ferr[projectFormPathKey] = err
 		}
 	}
-	if hasFormKey(form, projectFormCreateTimeKey) {
-		proj.CreateTime = f.CreateTime
+	if f.CreateTime != nil {
+		proj.CreateTime = *f.CreateTime
 	}
-	if hasFormKey(form, projectFormHomepageKey) {
-		proj.Homepage = f.Homepage
+	if f.Homepage.Valid {
+		proj.Homepage = f.Homepage.String
 	}
-	if hasFormKey(form, projectFormVCSTypeKey) {
+	if f.VCSType.Valid {
+		vt := f.VCSType.String
 		switch {
-		case f.VCSType == "":
+		case vt == "":
 			proj.VCS = nil
-		case isValidVCSType(f.VCSType):
+		case isValidVCSType(vt):
 			if proj.VCS == nil {
 				proj.VCS = new(catalog.VCSInfo)
 			}
-			proj.VCS.Type = f.VCSType
+			proj.VCS.Type = vt
 		default:
-			ferr[projectFormVCSTypeKey] = badVCSError(f.VCSType)
+			ferr[projectFormVCSTypeKey] = badVCSError(vt)
 		}
 	}
-	if hasFormKey(form, projectFormVCSURLKey) {
+	if f.VCSURL.Valid {
 		if proj.VCS == nil {
 			ferr[projectFormVCSURLKey] = errDanglingVCSURL
 		} else {
-			proj.VCS.URL = f.VCSURL
+			proj.VCS.URL = f.VCSURL.String
 		}
 	}
 	if len(ferr) > 0 {
