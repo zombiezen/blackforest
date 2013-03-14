@@ -3,11 +3,11 @@
 alias G=glados
 
 Gcd() {
-    local path="$(glados path "$1")"
+    local projpath="$(glados path "$1")"
     if [ $? -ne 0 ]; then
         return 1
     fi
-    cd "$path"
+    cd "$projpath"
 }
 compdef '_values "glados projects" $(glados list 2>/dev/null)' Gcd
 
