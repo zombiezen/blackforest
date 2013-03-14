@@ -2,10 +2,20 @@
 
 alias G=glados
 
-Gcd() { cd "$(glados path "$1")"; return $? }
+Gcd() {
+    local path="$(glados path "$1")"
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+    cd "$path"
+}
 compdef '_values "glados projects" $(glados list 2>/dev/null)' Gcd
 
-Ginfo() { glados show "$1" | sed -n 's/^'"$2"':\s*//p' }
+Ginfo() {
+    local word="$1"
+    shift
+    glados show "$@" | sed -n 's/^'"$word"':\s*//p'
+}
 
 alias GPUSH='hg push -R "$GLADOS_PATH"'
 alias GPULL='hg pull -R "$GLADOS_PATH" -u'
