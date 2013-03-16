@@ -436,6 +436,6 @@ func cmdDescribe(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		// no change
 		return nil
 	}
-	desc = strings.TrimRight(desc, "\r\n")
+	proj.Description = strings.TrimRight(desc, "\r\n")
 	return cat.PutProject(proj)
 }
