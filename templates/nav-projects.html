@@ -5,5 +5,8 @@
                 <li class="active"><a href="{{path "index"}}">Projects</a></li>
                 <li><a href="{{path "tagindex"}}">Tags</a></li>
             </ul>
+            <form method="GET" action="{{path "search"}}" class="navbar-search pull-left">
+                <input type="text" class="search-query" name="q" placeholder="Search">
+            </form>
         </div>
     </div>

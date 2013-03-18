@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{with .Query}}Search for "{{.}}"{{else}}Search{{end}}</title>
+{{template "head.html"}}
+</head>
+<body>
+{{template "nav-projects.html"}}
+    <div class="container">
+        <h1>Search</h1>
+
+        <form method="GET" action="{{path "search"}}" class="form-search">
+            <div class="input-append">
+                <input type="text" class="search-query" name="q" value="{{.Query}}" autofocus>
+                <input type="submit" class="btn btn-primary" value="Search">
+            </div>
+        </form>
+        {{range .Results}}
+        <div class="searchresult">
+            <h2><a href="{{path "project" "project" .ShortName}}">{{.ShortName}}</a></h2>
+            {{with .Snippet}}<p>{{.}}</p>{{end}}
+        </div>
+        {{else}}
+        {{if .Query}}<p class="lead">No results found</p>{{end}}
+        {{end}}
+    </div>
+{{template "js.html"}}
+</body>
+</html>

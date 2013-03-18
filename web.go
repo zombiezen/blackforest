@@ -10,14 +10,16 @@ import (
 	"strings"
 
 	"bitbucket.org/zombiezen/glados/catalog"
+	"bitbucket.org/zombiezen/glados/catalog/search"
 	"bitbucket.org/zombiezen/subcmd"
 	"bitbucket.org/zombiezen/webapp"
 	"github.com/gorilla/mux"
 )
 
 var (
-	router *mux.Router
-	tmpl   *template.Template
+	router   *mux.Router
+	tmpl     *template.Template
+	searcher search.Searcher
 )
 
 func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
@@ -35,9 +37,13 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	if cat, err = catalog.NewCache(cat); err != nil {
 		return err
 	}
+	if searcher, err = search.NewTextSearch(cat); err != nil {
+		return err
+	}
 
 	router = mux.NewRouter()
 	router.Handle("/", &handler{cat, handleIndex}).Name("index")
+	router.Handle("/search", &handler{cat, handleSearch}).Name("search")
 	router.Handle("/project/", &handler{cat, handleCreateProject}).Methods("PUT").Name("createproject")
 	router.Handle("/project/{project}", &handler{cat, handleProject}).Methods("GET", "HEAD").Name("project")
 	router.Handle("/project/{project}", &handler{cat, handleUpdateProject}).Methods("POST").Name("updateproject")
@@ -77,6 +83,25 @@ func handleIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) 
 		}
 	}
 	return tmpl.ExecuteTemplate(w, "index.html", projects)
+}
+
+func handleSearch(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+	query := req.FormValue("q")
+	var results []search.Result
+	if query != "" {
+		var err error
+		results, err = searcher.Search(query)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tmpl.ExecuteTemplate(w, "search.html", struct {
+		Query   string
+		Results []search.Result
+	}{
+		query, results,
+	})
 }
 
 func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
