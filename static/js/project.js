@@ -1,31 +1,9 @@
 (function($) {
-    $("#editbtn").click(function(e) {
+    $("#createform").submit(function(e) {
         e.preventDefault();
         e.stopPropagation();
 
-        $("#view").hide();
-        $("#edit").show();
-    });
-    $("#editcancel").click(function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        $("#view").show();
-        $("#edit").hide();
-    });
-
-    $("#createbtn").click(function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        $("#createbtn").hide();
-        $("#create").show();
-    });
-    $("#create").submit(function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        var form = $("#create");
+        var form = $("#createform");
         var action = form.attr("action");
         $.ajax(action, {
             "data": form.serialize(),
@@ -34,14 +12,5 @@
                 // TODO(light): redirect user to project page
             },
         });
-    });
-    $("#createcancel").click(function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // TODO: reset form
-
-        $("#createbtn").show();
-        $("#create").hide();
     });
 })($);

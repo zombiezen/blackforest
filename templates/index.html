@@ -8,39 +8,44 @@
 {{template "nav-projects.html"}}
     <div class="container">
         <h1>GLaDOS</h1>
-        <a id="createbtn" href="#" class="btn">Create</a>
-        <form id="create" class="span6" method="POST" action="{{path "createproject"}}" style="display:none">
-            <fieldset>
-                <label>Name</label>
-                <input type="text" class="span2" name="name">
-                <label>Short Name</label>
-                <input type="text" class="span1" name="shortname">
-                <label>Description</label>
-                <textarea name="description" class="span4" rows="4"></textarea>
-                <label>Homepage</label>
-                <input type="text" class="span3" name="url">
-                <label>Tags</label>
-                <input type="text" class="span3" name="tags">
-                <label>VCS</label>
-                <select name="vcs">
-                    <option value="">None</option>
-                    <option value="cvs">CVS</option>
-                    <option value="svn">Subversion</option>
-                    <option value="hg">Mercurial</option>
-                    <option value="git">Git</option>
-                    <option value="bzr">Bazaar</option>
-                    <option value="darcs">Darcs</option>
-                </select>
-                <label>VCS URL</label>
-                <input type="text" class="span3" name="url">
-                <div class="form-actions">
-                    <button id="createsave" type="submit" class="btn btn-primary">Save</button>
-                    <button id="createcancel" class="btn">Cancel</button>
-                </div>
-            </fieldset>
-        </form>
-        {{template "projectlist.html" .}}
-    </div>
+        <ul class="nav nav-tabs">
+            <li class="active"><a href="#list" data-toggle="tab">Projects</a></li>
+            <li><a href="#create" data-toggle="tab">Create</a></li>
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane active" id="list">
+                {{template "projectlist.html" .}}
+            </div>
+            <div class="tab-pane" id="create">
+                <form id="createform" class="span6" method="POST" action="{{path "createproject"}}">
+                    <fieldset>
+                        <label>Name</label>
+                        <input type="text" class="span2" name="name">
+                        <label>Short Name</label>
+                        <input type="text" class="span1" name="shortname">
+                        <label>Description</label>
+                        <textarea name="description" class="span4" rows="4"></textarea>
+                        <label>Homepage</label>
+                        <input type="text" class="span3" name="url">
+                        <label>Tags</label>
+                        <input type="text" class="span3" name="tags">
+                        <label>VCS</label>
+                        <select name="vcs">
+                            <option value="">None</option>
+                            <option value="cvs">CVS</option>
+                            <option value="svn">Subversion</option>
+                            <option value="hg">Mercurial</option>
+                            <option value="git">Git</option>
+                            <option value="bzr">Bazaar</option>
+                            <option value="darcs">Darcs</option>
+                        </select>
+                        <label>VCS URL</label>
+                        <input type="text" class="span3" name="url">
+                    </fieldset>
+                    <input type="submit" class="btn btn-primary" value="Save">
+                </form>
+            </div>
+        </div>
 {{template "js.html"}}
 <script type="text/javascript" src="{{path "js" "path" "project.js"}}"></script>
 </body>
