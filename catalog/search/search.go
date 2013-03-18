@@ -1,4 +1,5 @@
-package main
+// Package search provides text search in GLaDOS catalogs.
+package search
 
 import (
 	"log"
@@ -9,11 +10,13 @@ import (
 	"bitbucket.org/zombiezen/glados/catalog"
 )
 
+// A Searcher implements a textual search.
 type Searcher interface {
-	Search(query string) ([]SearchResult, error)
+	Search(query string) ([]Result, error)
 }
 
-type SearchResult struct {
+// Result stores a search result for a project.
+type Result struct {
 	ShortName string
 	Snippet   string
 	Relevance float32
@@ -24,6 +27,10 @@ type textSearch struct {
 	i map[string][]string
 }
 
+// NewTextSearch returns a Searcher that performs full text search over the
+// short name, name, and description fields of all projects in a catalog.
+// The Searcher maintains its own in-memory index of the catalog.  You must
+// create a new index if the underlying catalog is modified.
 func NewTextSearch(cat catalog.Catalog) (Searcher, error) {
 	ts := &textSearch{
 		c: cat,
@@ -41,28 +48,32 @@ func NewTextSearch(cat catalog.Catalog) (Searcher, error) {
 	return ts, nil
 }
 
-func (ts *textSearch) Search(q string) ([]SearchResult, error) {
+func (ts *textSearch) Search(q string) ([]Result, error) {
 	tokens := tokenize(q)
 	if len(tokens) == 0 {
 		return nil, nil
 	}
 
-	results := make(map[string]*SearchResult)
+	results := make(map[string]*Result)
+	tokenScale := 1.0 / float32(len(tokens))
 	for _, tok := range tokens {
-		for _, sn := range ts.i[tok] {
+		tsi := ts.i[tok]
+		quantum := 1.0 / float32(len(tsi))
+		for _, sn := range tsi {
 			r := results[sn]
 			if r == nil {
-				r = &SearchResult{ShortName: sn}
+				r = &Result{ShortName: sn}
 				results[sn] = r
 			}
-			// TODO(light): calculate relevance
+			r.Relevance += quantum * tokenScale
 		}
 	}
 
-	resultSlice := make([]SearchResult, 0, len(results))
+	resultSlice := make([]Result, 0, len(results))
 	for _, r := range results {
 		resultSlice = append(resultSlice, *r)
 	}
+	sort.Sort(byRelevance(resultSlice))
 	return resultSlice, nil
 }
 
@@ -98,16 +109,17 @@ func tokenize(s string) []string {
 	return t
 }
 
-type byRelevance []SearchResult
+type byRelevance []Result
 
 func (r byRelevance) Len() int           { return len(r) }
 func (r byRelevance) Less(i, j int) bool { return r[i].Relevance > r[j].Relevance }
 func (r byRelevance) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 
-type aggregateSearch []Searcher
+// Concurrent dispatches a search to a list of search systems.
+type Concurrent []Searcher
 
-func (s aggregateSearch) Search(q string) ([]SearchResult, error) {
-	c := make(chan []SearchResult)
+func (s Concurrent) Search(q string) ([]Result, error) {
+	c := make(chan []Result)
 	for _, ss := range s {
 		go func(ss Searcher) {
 			results, err := ss.Search(q)
@@ -117,7 +129,7 @@ func (s aggregateSearch) Search(q string) ([]SearchResult, error) {
 			c <- results
 		}(ss)
 	}
-	results := make([]SearchResult, 0)
+	results := make([]Result, 0)
 	for _ = range s {
 		r := <-c
 		if len(r) > 0 {
