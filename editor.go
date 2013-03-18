@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -24,7 +25,13 @@ func runEditor(text string) (string, error) {
 		return text, err
 	}
 
-	c := exec.Command("sh", "-c", editor+" "+shellEscape(f.Name()))
+	var c *exec.Cmd
+	if runtime.GOOS == "windows" {
+		// TODO(light): flags
+		c = exec.Command(editor, f.Name())
+	} else {
+		c = exec.Command("sh", "-c", editor+" "+shellEscape(f.Name()))
+	}
 	c.Stderr = os.Stderr
 	cerr := c.Run()
 	if _, err := f.Seek(0, os.SEEK_SET); err != nil {
@@ -40,9 +47,6 @@ func runEditor(text string) (string, error) {
 // shellEscape returns a string that surrounds arg with single quotes and
 // escapes any single quotes inside arg by using double quotes.
 func shellEscape(arg string) string {
-	// BUG(light): shellEscape fails on Windows because cmd.exe does not accept
-	// single quotes as a quoting mechanism.
-
 	parts := make([]string, 0, 1)
 	for {
 		if i := strings.IndexRune(arg, '\''); i != -1 {
@@ -55,4 +59,21 @@ func shellEscape(arg string) string {
 		parts = append(parts, arg)
 	}
 	return "'" + strings.Join(parts, `'"'"'`) + "'"
+}
+
+// windowsEscape returns a string that surrounds arg with double quotes and
+// escapes any double quotes inside arg by doubling them.
+func windowsEscape(arg string) string {
+	parts := make([]string, 0, 1)
+	for {
+		if i := strings.IndexRune(arg, '"'); i != -1 {
+			parts, arg = append(parts, arg[:i]), arg[i+1:]
+		} else {
+			break
+		}
+	}
+	if len(arg) > 0 {
+		parts = append(parts, arg)
+	}
+	return `"` + strings.Join(parts, `""`) + `"`
 }
