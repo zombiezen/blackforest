@@ -226,17 +226,22 @@ type tagGroup struct {
 	Tags  []tagInfo
 }
 
+type tagFinder interface {
+	Tags() []string
+	FindTag(tag string) []string
+}
+
 // organizeTags splits the list of tags from a cache into groups and retrieves
 // the number of projects each tag has.
-func organizeTags(cache *catalog.Cache) []tagGroup {
-	tags := cache.Tags()
+func organizeTags(finder tagFinder) []tagGroup {
+	tags := finder.Tags()
 	sort.Strings(tags)
 
 	misc := make([]tagInfo, 0, len(tags))
 	groups := []tagGroup{}
-	for i := 0; i < len(tags); i++ {
+	for i := 0; i < len(tags); {
 		t := tags[i]
-		info := tagInfo{Tag: t, Count: len(cache.FindTag(t))}
+		info := tagInfo{Tag: t, Count: len(finder.FindTag(t))}
 		if dash := strings.IndexRune(t, '-'); dash != -1 {
 			label, prefix := t[:dash], t[:dash+1]
 			j := i + 1
@@ -245,16 +250,16 @@ func organizeTags(cache *catalog.Cache) []tagGroup {
 			if j-i > 1 {
 				infos := make([]tagInfo, j-i)
 				for i, t := range tags[i:j] {
-					infos[i] = tagInfo{Tag: t, Count: len(cache.FindTag(t))}
+					infos[i] = tagInfo{Tag: t, Count: len(finder.FindTag(t))}
 				}
 				groups = append(groups, tagGroup{Label: label, Tags: infos})
 				i = j
-			} else {
-				misc = append(misc, info)
+				continue
 			}
-		} else {
-			misc = append(misc, info)
 		}
+
+		misc = append(misc, info)
+		i++
 	}
 	sort.Sort(Stable(byTagCount(misc)))
 	groups = append(groups, tagGroup{Tags: misc})
