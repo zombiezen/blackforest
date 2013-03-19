@@ -1,9 +1,9 @@
 <div id="tagsidebar" class="span3">
     <ul class="nav nav-list">
-        {{range $i, $info := .}}
+        {{range $i, $info := .Groups}}
         {{with .Label}}<li class="nav-header">{{.}}</li>{{else}}{{if $i}}<hr>{{end}}{{end}}
         {{range .Tags}}
-        <li><a href="{{path "tag" "tag" .Tag}}">{{.Tag}} <span class="badge pull-right">{{.Count}}</span></a></li>
+        <li{{if stringeq .Tag $.Active}} class="active"{{end}}><a href="{{path "tag" "tag" .Tag}}">{{.Tag}} <span class="badge pull-right">{{.Count}}</span></a></li>
         {{end}}
         {{end}}
     </ul>

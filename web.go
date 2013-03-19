@@ -169,9 +169,14 @@ func handlePutProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Requ
 	return webapp.JSONResponse(w, proj)
 }
 
+type tagSidebar struct {
+	Groups []tagGroup
+	Active string
+}
+
 func handleTagIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
 	cache := cat.(*catalog.Cache)
-	return tmpl.ExecuteTemplate(w, "tag-index.html", organizeTags(cache))
+	return tmpl.ExecuteTemplate(w, "tag-index.html", tagSidebar{Groups: organizeTags(cache)})
 }
 
 func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
@@ -197,10 +202,10 @@ func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) er
 
 	return tmpl.ExecuteTemplate(w, "tag.html", struct {
 		Tag      string
-		Tags     []tagGroup
+		Sidebar  tagSidebar
 		Projects []*catalog.Project
 	}{
-		tag, tags, projects,
+		tag, tagSidebar{tags, tag}, projects,
 	})
 }
 
