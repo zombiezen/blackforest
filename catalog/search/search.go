@@ -28,7 +28,7 @@ type textSearch struct {
 }
 
 // NewTextSearch returns a Searcher that performs full text search over the
-// short name, name, and description fields of all projects in a catalog.
+// short name, name, tags, and description fields of all projects in a catalog.
 // The Searcher maintains its own in-memory index of the catalog.  You must
 // create a new index if the underlying catalog is modified.
 func NewTextSearch(cat catalog.Catalog) (Searcher, error) {
@@ -82,7 +82,19 @@ func (ts *textSearch) build(sn string) error {
 	if err != nil {
 		return err
 	}
-	words := append(tokenize(p.Name), tokenize(p.Description)...)
+	words := tokenize(p.Name)
+	words = append(words, fold(p.ShortName))
+	words = append(words, tokenize(p.Description)...)
+	for _, tag := range p.Tags {
+		words = append(words, fold(tag))
+		if parts := strings.Split(tag, "-"); len(parts) > 1 {
+			for _, part := range parts {
+				if part != "" {
+					words = append(words, fold(part))
+				}
+			}
+		}
+	}
 	for _, w := range words {
 		ts.i[w] = append(ts.i[w], sn)
 	}
