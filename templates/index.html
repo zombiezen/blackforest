@@ -17,33 +17,35 @@
                 {{template "projectlist.html" .}}
             </div>
             <div class="tab-pane" id="create">
-                <form id="createform" class="span6" method="POST" action="{{path "createproject"}}">
-                    <fieldset>
-                        <label>Name</label>
-                        <input type="text" class="span2" name="name">
-                        <label>Short Name</label>
-                        <input type="text" class="span1" name="shortname">
-                        <label>Description</label>
-                        <textarea name="description" class="span4" rows="4"></textarea>
-                        <label>Homepage</label>
-                        <input type="text" class="span3" name="url">
-                        <label>Tags</label>
-                        <input type="text" class="span3" name="tags">
-                        <label>VCS</label>
-                        <select name="vcs">
-                            <option value="">None</option>
-                            <option value="cvs">CVS</option>
-                            <option value="svn">Subversion</option>
-                            <option value="hg">Mercurial</option>
-                            <option value="git">Git</option>
-                            <option value="bzr">Bazaar</option>
-                            <option value="darcs">Darcs</option>
-                        </select>
-                        <label>VCS URL</label>
-                        <input type="text" class="span3" name="url">
-                    </fieldset>
-                    <input type="submit" class="btn btn-primary" value="Save">
-                </form>
+                <div class="span6">
+                    <form id="createform" method="POST" action="{{path "postproject"}}">
+                        <fieldset>
+                            <label>Name</label>
+                            <input type="text" class="span2" name="name">
+                            <label>Short Name</label>
+                            <input type="text" class="span1" name="shortname">
+                            <label>Description</label>
+                            <textarea name="description" class="span4" rows="4"></textarea>
+                            <label>Homepage</label>
+                            <input type="text" class="span3" name="url">
+                            <label>Tags</label>
+                            <input type="text" class="span3" name="tags">
+                            <label>VCS</label>
+                            <select name="vcs">
+                                <option value="">None</option>
+                                <option value="cvs">CVS</option>
+                                <option value="svn">Subversion</option>
+                                <option value="hg">Mercurial</option>
+                                <option value="git">Git</option>
+                                <option value="bzr">Bazaar</option>
+                                <option value="darcs">Darcs</option>
+                            </select>
+                            <label>VCS URL</label>
+                            <input type="text" class="span3" name="url">
+                        </fieldset>
+                        <input type="submit" class="btn btn-primary" value="Save">
+                    </form>
+                </div>
             </div>
         </div>
 {{template "js.html"}}

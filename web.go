@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -44,9 +45,9 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	router = mux.NewRouter()
 	router.Handle("/", &handler{cat, handleIndex}).Name("index")
 	router.Handle("/search", &handler{cat, handleSearch}).Name("search")
-	router.Handle("/project/", &handler{cat, handleCreateProject}).Methods("PUT").Name("createproject")
+	router.Handle("/project/", &handler{cat, handlePostProject}).Methods("POST").Name("postproject")
 	router.Handle("/project/{project}", &handler{cat, handleProject}).Methods("GET", "HEAD").Name("project")
-	router.Handle("/project/{project}", &handler{cat, handleUpdateProject}).Methods("POST").Name("updateproject")
+	router.Handle("/project/{project}", &handler{cat, handlePutProject}).Methods("PUT").Name("putproject")
 	router.Handle("/tag/", &handler{cat, handleTagIndex}).Name("tagindex")
 	router.Handle("/tag/{tag}", &handler{cat, handleTag}).Name("tag")
 	staticDirRoute(router, "/css/", filepath.Join(*staticDir, "css")).Name("css")
@@ -115,10 +116,10 @@ func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request
 	return tmpl.ExecuteTemplate(w, "project.html", proj)
 }
 
-func handleCreateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+func handlePostProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
 	if err := req.ParseForm(); err != nil {
-		// TODO(light): different HTTP code?
-		return err
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return nil
 	}
 
 	delete(req.Form, projectFormAddTagsKey)
@@ -132,15 +133,19 @@ func handleCreateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 	if err := cat.PutProject(proj); err != nil {
 		return err
 	}
-	http.Redirect(w, req, routerPath("project", "project", proj.ShortName), http.StatusFound)
-	return nil
+
+	projPath := routerPath("project", "project", proj.ShortName)
+	w.Header().Set(webapp.HeaderLocation, projPath)
+	w.Header().Set(webapp.HeaderContentType, webapp.JSONType)
+	w.WriteHeader(http.StatusCreated)
+	return json.NewEncoder(w).Encode(proj)
 }
 
-func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+func handlePutProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
 	sn := mux.Vars(req)["project"]
 	if err := req.ParseForm(); err != nil {
-		// TODO(light): different HTTP code?
-		return err
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return nil
 	}
 
 	proj, err := cat.GetProject(sn)
@@ -161,8 +166,7 @@ func handleUpdateProject(cat catalog.Catalog, w http.ResponseWriter, req *http.R
 	if err := cat.PutProject(proj); err != nil {
 		return err
 	}
-	http.Redirect(w, req, routerPath("project", "project", proj.ShortName), http.StatusFound)
-	return nil
+	return webapp.JSONResponse(w, proj)
 }
 
 func handleTagIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {

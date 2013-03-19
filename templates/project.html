@@ -29,33 +29,35 @@
                 </dl>
             </div>
             <div class="tab-pane" id="edit">
-                <form id="editform" class="span6" method="POST" action="{{path "updateproject" "project" .ShortName}}">
-                    <fieldset>
-                        <label>Name</label>
-                        <input type="text" class="span2" name="name" value="{{.Name}}">
-                        <label>Short Name</label>
-                        <input type="text" class="span1" name="shortname" value="{{.ShortName}}">
-                        <label>Description</label>
-                        <textarea name="description" class="span4" rows="4">{{.Description}}</textarea>
-                        <label>Homepage</label>
-                        <input type="text" class="span3" name="url" value="{{.Homepage}}">
-                        <label>Tags</label>
-                        <input type="text" class="span3" name="tags" value="{{.Tags}}">
-                        <label>VCS</label>
-                        <select name="vcs">
-                            <option value=""{{with .VCS}}{{if stringeq .Type ""}} selected{{end}}{{end}}>None</option>
-                            <option value="cvs"{{with .VCS}}{{if stringeq .Type "cvs"}} selected{{end}}{{end}}>CVS</option>
-                            <option value="svn"{{with .VCS}}{{if stringeq .Type "svn"}} selected{{end}}{{end}}>Subversion</option>
-                            <option value="hg"{{with .VCS}}{{if stringeq .Type "hg"}} selected{{end}}{{end}}>Mercurial</option>
-                            <option value="git"{{with .VCS}}{{if stringeq .Type "git"}} selected{{end}}{{end}}>Git</option>
-                            <option value="bzr"{{with .VCS}}{{if stringeq .Type "bzr"}} selected{{end}}{{end}}>Bazaar</option>
-                            <option value="darcs"{{with .VCS}}{{if stringeq .Type "darcs"}} selected{{end}}{{end}}>Darcs</option>
-                        </select>
-                        <label>VCS URL</label>
-                        <input type="text" class="span3" name="url" value="{{with .VCS}}{{.URL}}{{end}}">
-                    </fieldset>
-                    <input type="submit" class="btn btn-primary" value="Save">
-                </form>
+                <div class="span6">
+                    <form id="editform" method="PUT" action="{{path "putproject" "project" .ShortName}}">
+                        <fieldset>
+                            <label>Name</label>
+                            <input type="text" class="span2" name="name" value="{{.Name}}">
+                            <label>Short Name</label>
+                            <input type="text" class="span1" name="shortname" value="{{.ShortName}}">
+                            <label>Description</label>
+                            <textarea name="description" class="span4" rows="4">{{.Description}}</textarea>
+                            <label>Homepage</label>
+                            <input type="text" class="span3" name="url" value="{{.Homepage}}">
+                            <label>Tags</label>
+                            <input type="text" class="span3" name="tags" value="{{.Tags}}">
+                            <label>VCS</label>
+                            <select name="vcs">
+                                <option value=""{{with .VCS}}{{if stringeq .Type ""}} selected{{end}}{{end}}>None</option>
+                                <option value="cvs"{{with .VCS}}{{if stringeq .Type "cvs"}} selected{{end}}{{end}}>CVS</option>
+                                <option value="svn"{{with .VCS}}{{if stringeq .Type "svn"}} selected{{end}}{{end}}>Subversion</option>
+                                <option value="hg"{{with .VCS}}{{if stringeq .Type "hg"}} selected{{end}}{{end}}>Mercurial</option>
+                                <option value="git"{{with .VCS}}{{if stringeq .Type "git"}} selected{{end}}{{end}}>Git</option>
+                                <option value="bzr"{{with .VCS}}{{if stringeq .Type "bzr"}} selected{{end}}{{end}}>Bazaar</option>
+                                <option value="darcs"{{with .VCS}}{{if stringeq .Type "darcs"}} selected{{end}}{{end}}>Darcs</option>
+                            </select>
+                            <label>VCS URL</label>
+                            <input type="text" class="span3" name="url" value="{{with .VCS}}{{.URL}}{{end}}">
+                        </fieldset>
+                        <input type="submit" class="btn btn-primary" value="Save">
+                    </form>
+                </div>
             </div>
         </div>
     </div>
