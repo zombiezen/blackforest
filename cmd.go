@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"bitbucket.org/zombiezen/glados/catalog"
+	"bitbucket.org/zombiezen/glados/catalog/search"
 	"bitbucket.org/zombiezen/glados/vcs"
 	"bitbucket.org/zombiezen/subcmd"
 )
@@ -95,6 +96,13 @@ var commandSet = subcmd.Set{
 			Aliases:     []string{"co"},
 			Synopsis:    "checkout PROJECT [PATH]",
 			Description: "check out project from version control",
+		},
+		{
+			Func:        cmdSearch,
+			Name:        "search",
+			Aliases:     []string{},
+			Synopsis:    "search QUERY",
+			Description: "full text search for projects",
 		},
 		{
 			Func:        cmdWeb,
@@ -438,4 +446,29 @@ func cmdDescribe(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	}
 	proj.Description = strings.TrimRight(desc, "\r\n")
 	return cat.PutProject(proj)
+}
+
+func cmdSearch(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
+	parseFlags(fset, args)
+	if fset.NArg() == 0 {
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
+	}
+	query := strings.Join(args, " ")
+	cat := requireCatalog()
+
+	s, err := search.NewTextSearch(cat)
+	if err != nil {
+		return err
+	}
+	results, err := s.Search(query)
+	if err != nil {
+		return err
+	}
+	for i := range results {
+		r := &results[i]
+		fmt.Println(r.ShortName)
+	}
+	return nil
 }

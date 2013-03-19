@@ -48,7 +48,7 @@ __glados_complete() {
         return
     }
     case ${words[2]} in
-    init|list|ls)
+    init|list|ls|search)
         _arguments : ${globalflags[@]}
         ;;
     show|info)
