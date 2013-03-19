@@ -21,15 +21,17 @@
                     <form id="createform" method="POST" action="{{path "postproject"}}">
                         <fieldset>
                             <label>Name</label>
-                            <input type="text" class="span2" name="name">
+                            <input type="text" class="span3" name="name" required>
                             <label>Short Name</label>
-                            <input type="text" class="span1" name="shortname">
+                            <input type="text" class="span2" name="shortname" pattern="[-_0-9a-zA-Z]+" required>
+                            <span class="help-block">Can only have letters, numbers, underscores, and hyphens</span>
                             <label>Description</label>
-                            <textarea name="description" class="span4" rows="4"></textarea>
+                            <textarea name="description" class="span5" rows="4"></textarea>
                             <label>Homepage</label>
-                            <input type="text" class="span3" name="url">
+                            <input type="url" class="span4" name="url">
                             <label>Tags</label>
-                            <input type="text" class="span3" name="tags">
+                            <input type="text" class="span4" name="tags">
+                            <span class="help-block">Tags separated by commas</span>
                             <label>VCS</label>
                             <select name="vcs">
                                 <option value="">None</option>
@@ -41,7 +43,7 @@
                                 <option value="darcs">Darcs</option>
                             </select>
                             <label>VCS URL</label>
-                            <input type="text" class="span3" name="vcsurl">
+                            <input type="url" class="span4" name="vcsurl">
                         </fieldset>
                         <input type="submit" class="btn btn-primary" value="Save">
                     </form>

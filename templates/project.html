@@ -33,15 +33,17 @@
                     <form id="editform" method="PUT" action="{{path "putproject" "project" .ShortName}}">
                         <fieldset>
                             <label>Name</label>
-                            <input type="text" class="span2" name="name" value="{{.Name}}">
+                            <input type="text" class="span3" name="name" value="{{.Name}}" required>
                             <label>Short Name</label>
-                            <input type="text" class="span1" name="shortname" value="{{.ShortName}}">
+                            <input type="text" class="span2" name="shortname" value="{{.ShortName}}" pattern="[-_0-9a-zA-Z]+" required>
+                            <span class="help-block">Can only have letters, numbers, underscores, and hyphens</span>
                             <label>Description</label>
                             <textarea name="description" class="span4" rows="4">{{.Description}}</textarea>
                             <label>Homepage</label>
-                            <input type="text" class="span3" name="url" value="{{.Homepage}}">
+                            <input type="url" class="span4" name="url" value="{{.Homepage}}">
                             <label>Tags</label>
-                            <input type="text" class="span3" name="tags" value="{{.Tags}}">
+                            <input type="text" class="span4" name="tags" value="{{.Tags}}">
+                            <span class="help-block">Tags separated by commas</span>
                             <label>VCS</label>
                             <select name="vcs">
                                 <option value=""{{with .VCS}}{{if stringeq .Type ""}} selected{{end}}{{end}}>None</option>
@@ -53,7 +55,7 @@
                                 <option value="darcs"{{with .VCS}}{{if stringeq .Type "darcs"}} selected{{end}}{{end}}>Darcs</option>
                             </select>
                             <label>VCS URL</label>
-                            <input type="text" class="span3" name="vcsurl" value="{{with .VCS}}{{.URL}}{{end}}">
+                            <input type="url" class="span4" name="vcsurl" value="{{with .VCS}}{{.URL}}{{end}}">
                         </fieldset>
                         <input type="submit" class="btn btn-primary" value="Save">
                     </form>
