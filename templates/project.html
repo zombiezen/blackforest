@@ -53,7 +53,7 @@
                                 <option value="darcs"{{with .VCS}}{{if stringeq .Type "darcs"}} selected{{end}}{{end}}>Darcs</option>
                             </select>
                             <label>VCS URL</label>
-                            <input type="text" class="span3" name="url" value="{{with .VCS}}{{.URL}}{{end}}">
+                            <input type="text" class="span3" name="vcsurl" value="{{with .VCS}}{{.URL}}{{end}}">
                         </fieldset>
                         <input type="submit" class="btn btn-primary" value="Save">
                     </form>
