@@ -111,6 +111,13 @@ var commandSet = subcmd.Set{
 			Synopsis:    "web [OPTIONS]",
 			Description: "run web server",
 		},
+		{
+			Func:        cmdVerify,
+			Name:        "verify",
+			Aliases:     []string{},
+			Synopsis:    "verify [-catalog=PATH]",
+			Description: "check a catalog for consistency",
+		},
 	},
 }
 
@@ -471,4 +478,70 @@ func cmdSearch(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		fmt.Println(r.ShortName)
 	}
 	return nil
+}
+
+func cmdVerify(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
+	fset := cmd.FlagSet(set)
+	parseFlags(fset, args)
+	if fset.NArg() > 0 {
+		cmd.PrintSynopsis(set)
+		return exitError(exitUsage)
+	}
+	cat := requireCatalog()
+
+	const catalogName = "catalog.json"
+	var c struct {
+		ShortNameMap map[string]string `json:"id_to_shortname"`
+	}
+	if err := readJSON(filepath.Join(catalogPath, catalogName), &c); err != nil {
+		return err
+	}
+
+	failed := false
+	names, err := cat.List()
+	if err != nil {
+		return err
+	}
+	idealMap := make(map[string]string, len(names))
+	for _, sn := range names {
+		p, err := cat.GetProject(sn)
+		if err != nil {
+			return err
+		}
+		idstr := p.ID.String()
+		if other, ok := idealMap[idstr]; ok {
+			fmt.Printf("ID conflict: %s used for %s and %s\n", idstr, other, sn)
+			failed = true
+		}
+		idealMap[p.ID.String()] = sn
+	}
+	for k, ideal := range idealMap {
+		if actual, ok := c.ShortNameMap[k]; !ok {
+			fmt.Printf("Expected ID %s -> %s, but no entry was found\n", k, ideal)
+			failed = true
+		} else if actual != ideal {
+			fmt.Printf("Expected ID %s -> %s, but found %s\n", k, ideal, actual)
+			failed = true
+		}
+	}
+	for k, actual := range c.ShortNameMap {
+		if _, ok := idealMap[k]; !ok {
+			fmt.Printf("Found extra ID mapping: %s -> %s\n", k, actual)
+			failed = true
+		}
+	}
+
+	if failed {
+		return errFailed
+	}
+	return nil
+}
+
+func readJSON(path string, v interface{}) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return json.NewDecoder(f).Decode(v)
 }
