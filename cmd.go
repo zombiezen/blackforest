@@ -414,6 +414,8 @@ func cmdCheckout(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		vc = new(vcs.Mercurial)
 	case catalog.Subversion:
 		vc = new(vcs.Subversion)
+	case catalog.Bazaar:
+		vc = new(vcs.Bazaar)
 	default:
 		return badVCSError(vt)
 	}

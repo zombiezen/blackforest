@@ -67,6 +67,7 @@ func OpenWorkingCopy(path string) (WorkingCopy, error) {
 	vcsList := []VCS{
 		new(Mercurial),
 		new(Subversion),
+		new(Bazaar),
 	}
 	for _, v := range vcsList {
 		ok, err := v.IsWorkingCopy(path)
