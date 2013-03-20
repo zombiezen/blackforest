@@ -14,7 +14,7 @@
         </ul>
         <div class="tab-content">
             <div class="tab-pane active" id="list">
-                {{template "projectlist.html" .}}
+                {{template "projectlist.html" .Projects}}
             </div>
             <div class="tab-pane" id="create">
                 <div class="span6">
@@ -32,6 +32,9 @@
                             <label>Tags</label>
                             <input type="text" class="span4" name="tags">
                             <span class="help-block">Tags separated by commas</span>
+                            <label>Created</label>
+                            <input type="datetime" class="span4" name="created" value="{{.Now|rfc3339}}" required>
+                            <span class="help-block"><a href="http://tools.ietf.org/html/rfc3339#section-5.8">RFC3339</a> date of when the project was created. Example: 2006-01-02T15:04:05-07:00</span>
                             <label>VCS</label>
                             <select name="vcs">
                                 <option value="">None</option>

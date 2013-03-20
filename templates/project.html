@@ -23,8 +23,8 @@
                     <dt>VCS</dt><dd>{{.Type}}</dd>
                     {{with .URL}}<dt>VCS Link</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
                     {{end}}
-                    <dt>Created</dt><dd>{{.CreateTime}}</dd>
-                    <dt>Catalogued</dt><dd>{{.CatalogTime}}</dd>
+                    <dt>Created</dt><dd>{{with .CreateTime}}<time datetime="{{.|rfc3339}}">{{.}}</time>{{end}}</dd>
+                    <dt>Catalogued</dt><dd>{{with .CatalogTime}}<time datetime="{{.|rfc3339}}">{{.}}</time>{{end}}</dd>
                     <dt>ID</dt><dd>{{.ID}}</dd>
                 </dl>
             </div>
@@ -44,6 +44,9 @@
                             <label>Tags</label>
                             <input type="text" class="span4" name="tags" value="{{.Tags}}">
                             <span class="help-block">Tags separated by commas</span>
+                            <label>Created</label>
+                            <input type="datetime" class="span4" name="created" value="{{.CreateTime|rfc3339}}" required>
+                            <span class="help-block"><a href="http://tools.ietf.org/html/rfc3339#section-5.8">RFC3339</a> date of when the project was created. Example: 2006-01-02T15:04:05-07:00</span>
                             <label>VCS</label>
                             <select name="vcs">
                                 <option value=""{{with .VCS}}{{if stringeq .Type ""}} selected{{end}}{{end}}>None</option>

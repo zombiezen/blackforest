@@ -100,7 +100,7 @@ type projectForm struct {
 	DelTags     catalog.TagSet `schema:"deltags"`
 	Description nullString     `schema:"description"`
 	Path        nullString     `schema:"path"`
-	CreateTime  *time.Time     `schema:"created"`
+	CreateTime  time.Time      `schema:"created"`
 	Homepage    nullString     `schema:"url"`
 	VCSType     nullString     `schema:"vcs"`
 	VCSURL      nullString     `schema:"vcsurl"`
@@ -143,8 +143,8 @@ func (f *projectForm) Update(proj *catalog.Project, host string) error {
 			ferr[projectFormPathKey] = err
 		}
 	}
-	if f.CreateTime != nil {
-		proj.CreateTime = *f.CreateTime
+	if !f.CreateTime.IsZero() {
+		proj.CreateTime = f.CreateTime
 	}
 	if f.Homepage.Valid {
 		proj.Homepage = f.Homepage.String

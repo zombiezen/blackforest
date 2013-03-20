@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"bitbucket.org/zombiezen/glados/catalog"
 	"bitbucket.org/zombiezen/glados/catalog/search"
@@ -60,6 +61,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		"prettyurl": prettyurl,
 		"ellipsis":  ellipsis,
 		"stringeq":  func(a, b string) bool { return a == b },
+		"rfc3339":   rfc3339,
 	})
 	if _, err := tmpl.ParseGlob(filepath.Join(*templateDir, "*.html")); err != nil {
 		return err
@@ -69,6 +71,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 }
 
 func handleIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+	now := time.Now()
 	list, err := cat.List()
 	if err != nil {
 		return err
@@ -83,7 +86,12 @@ func handleIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) 
 			log.Printf("error fetching %s from list: %v", sn, err)
 		}
 	}
-	return tmpl.ExecuteTemplate(w, "index.html", projects)
+	return tmpl.ExecuteTemplate(w, "index.html", struct {
+		Projects []*catalog.Project
+		Now      time.Time
+	}{
+		projects, now,
+	})
 }
 
 func handleSearch(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
@@ -326,6 +334,10 @@ func prettyurl(u string) string {
 		}
 	}
 	return u
+}
+
+func rfc3339(t time.Time) string {
+	return t.Format(time.RFC3339)
 }
 
 func ellipsis(n int, s string) string {
