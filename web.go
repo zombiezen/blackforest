@@ -115,7 +115,7 @@ func handleSearch(cat catalog.Catalog, w http.ResponseWriter, req *http.Request)
 
 func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
 	sn := mux.Vars(req)["project"]
-	proj, err := cat.GetProject(sn)
+	proj, err := cat.(*catalog.Cache).RefreshProject(sn)
 	if err != nil {
 		return err
 	} else if proj == nil {
@@ -156,7 +156,7 @@ func handlePutProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Requ
 		return nil
 	}
 
-	proj, err := cat.GetProject(sn)
+	proj, err := cat.(*catalog.Cache).RefreshProject(sn)
 	if err != nil {
 		return err
 	} else if proj == nil {
