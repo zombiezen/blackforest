@@ -49,6 +49,31 @@ func (c *Cache) uncache(shortName string) {
 	delete(c.m, shortName)
 }
 
+// RefreshProject updates a project's cache by getting the project from the
+// underlying catalog.  If there is an error getting the project, the cache
+// entry will be unchanged.
+func (c *Cache) RefreshProject(shortName string) (*Project, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	proj, err := c.cat.GetProject(shortName)
+	if err != nil {
+		p := c.m[shortName]
+		return &p, err
+	}
+
+	c.uncache(shortName)
+	if proj != nil {
+		if old := c.id[proj.ID]; old != "" && old != shortName {
+			// This is a rename of an existing project.
+			// To maintain consistency, uncache previous short name.
+			c.uncache(old)
+		}
+		c.cache(proj)
+	}
+	return proj, nil
+}
+
 // RefreshAll purges all keys from the cache and retrieves all the projects from
 // the underlying catalog.  Any error encountered in the process will abort the
 // refresh.

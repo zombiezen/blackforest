@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -141,6 +142,319 @@ func TestCachePut(t *testing.T) {
 	}
 }
 
+func TestCache_RefreshProject(t *testing.T) {
+	const (
+		projShortName = "glados"
+		projInitName  = "GLaDOS"
+		projNewName   = "FOO"
+	)
+
+	mc := newMockCatalog()
+	c, err := NewCache(mc)
+	if err != nil {
+		t.Error("NewCache error:", err)
+	}
+
+	steps := []struct {
+		Desc       string
+		Func       func()
+		Check      func() (*Project, error)
+		ExpectName string
+	}{
+		{
+			`initial GetProject("` + projShortName + `")`,
+			nil,
+			func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			projInitName,
+		},
+		{
+			`before refresh GetProject("` + projShortName + `")`,
+			func() {
+				mc[projShortName].Name = projNewName
+			},
+			func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			projInitName,
+		},
+		{
+			`RefreshProject("` + projShortName + `")`,
+			nil,
+			func() (*Project, error) {
+				return c.RefreshProject(projShortName)
+			},
+			projNewName,
+		},
+		{
+			`after refresh GetProject("` + projShortName + `")`,
+			nil,
+			func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			projNewName,
+		},
+	}
+
+	for _, step := range steps {
+		if step.Func != nil {
+			step.Func()
+		}
+		proj, err := step.Check()
+		if err != nil {
+			t.Errorf("%s error: %v", step.Desc, err)
+		}
+		if proj == nil {
+			t.Errorf("%s = nil", step.Desc)
+		} else if proj.Name != step.ExpectName {
+			t.Errorf("%s.Name = %q; want %q", step.Desc, proj.Name, step.ExpectName)
+		}
+	}
+}
+
+func TestCache_RefreshProject_Delete(t *testing.T) {
+	const (
+		projShortName = "glados"
+		projName      = "GLaDOS"
+	)
+
+	mc := newMockCatalog()
+	c, err := NewCache(mc)
+	if err != nil {
+		t.Error("NewCache error:", err)
+	}
+
+	steps := []struct {
+		Desc       string
+		Func       func()
+		Check      func() (*Project, error)
+		ExpectNil  bool
+		ExpectName string
+	}{
+		{
+			Desc: `initial GetProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			ExpectName: projName,
+		},
+		{
+			Func: func() {
+				delete(mc, projShortName)
+			},
+			Desc: `before refresh GetProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			ExpectName: projName,
+		},
+		{
+			Desc: `RefreshProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.RefreshProject(projShortName)
+			},
+			ExpectNil: true,
+		},
+		{
+			Desc: `after refresh GetProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			ExpectNil: true,
+		},
+	}
+
+	for _, step := range steps {
+		if step.Func != nil {
+			step.Func()
+		}
+		proj, err := step.Check()
+		if err != nil {
+			t.Errorf("%s error: %v", step.Desc, err)
+		}
+		switch {
+		case step.ExpectNil && proj != nil:
+			t.Errorf("%s = %#v; want nil", step.Desc, proj)
+		case !step.ExpectNil && proj == nil:
+			t.Errorf("%s = nil", step.Desc)
+		case !step.ExpectNil && proj.Name != step.ExpectName:
+			t.Errorf("%s.Name = %q; want %q", step.Desc, proj.Name, step.ExpectName)
+		}
+	}
+}
+
+func TestCache_RefreshProject_Rename(t *testing.T) {
+	const (
+		projShortName    = "glados"
+		projNewShortName = "glados2"
+
+		projInitName = "GLaDOS"
+		projNewName  = "GLaDOS 2"
+	)
+
+	mc := newMockCatalog()
+	c, err := NewCache(mc)
+	if err != nil {
+		t.Error("NewCache error:", err)
+	}
+
+	steps := []struct {
+		Desc       string
+		Func       func()
+		Check      func() (*Project, error)
+		ExpectNil  bool
+		ExpectName string
+	}{
+		{
+			Desc: `initial GetProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			ExpectName: projInitName,
+		},
+		{
+			Desc: `initial GetProject("` + projNewShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projNewShortName)
+			},
+			ExpectNil: true,
+		},
+		{
+			Func: func() {
+				p := mc[projShortName]
+				delete(mc, projShortName)
+				mc[projNewShortName] = p
+				p.Name = projNewName
+				p.ShortName = projNewShortName
+			},
+			Desc: `before refresh GetProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			ExpectName: projInitName,
+		},
+		{
+			Desc: `before refresh GetProject("` + projNewShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projNewShortName)
+			},
+			ExpectNil: true,
+		},
+		{
+			Desc: `RefreshProject("` + projNewShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.RefreshProject(projNewShortName)
+			},
+			ExpectName: projNewName,
+		},
+		{
+			Desc: `after refresh GetProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			ExpectNil: true,
+		},
+		{
+			Desc: `after refresh GetProject("` + projNewShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projNewShortName)
+			},
+			ExpectName: projNewName,
+		},
+	}
+
+	for _, step := range steps {
+		if step.Func != nil {
+			step.Func()
+		}
+		proj, err := step.Check()
+		if err != nil {
+			t.Errorf("%s error: %v", step.Desc, err)
+		}
+		switch {
+		case step.ExpectNil && proj != nil:
+			t.Errorf("%s = %#v; want nil", step.Desc, proj)
+		case !step.ExpectNil && proj == nil:
+			t.Errorf("%s = nil", step.Desc)
+		case !step.ExpectNil && proj.Name != step.ExpectName:
+			t.Errorf("%s.Name = %q; want %q", step.Desc, proj.Name, step.ExpectName)
+		}
+	}
+}
+
+func TestCache_RefreshProject_Fail(t *testing.T) {
+	const (
+		projShortName = "glados"
+		projName      = "GLaDOS"
+	)
+
+	mc := mockFailCatalog{mockCatalog: newMockCatalog()}
+	c, err := NewCache(&mc)
+	if err != nil {
+		t.Error("NewCache error:", err)
+	}
+
+	steps := []struct {
+		Desc        string
+		Func        func()
+		Check       func() (*Project, error)
+		ExpectError bool
+		ExpectName  string
+	}{
+		{
+			Desc: `initial GetProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			ExpectName: projName,
+		},
+		{
+			Func: func() {
+				mc.Fail = true
+			},
+			Desc: `before refresh GetProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			ExpectName: projName,
+		},
+		{
+			Desc: `RefreshProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.RefreshProject(projShortName)
+			},
+			ExpectError: true,
+			ExpectName:  projName,
+		},
+		{
+			Desc: `after refresh GetProject("` + projShortName + `")`,
+			Check: func() (*Project, error) {
+				return c.GetProject(projShortName)
+			},
+			ExpectName: projName,
+		},
+	}
+
+	for _, step := range steps {
+		if step.Func != nil {
+			step.Func()
+		}
+		proj, err := step.Check()
+		if !step.ExpectError && err != nil {
+			t.Errorf("%s error: %v", step.Desc, err)
+		} else if step.ExpectError && err == nil {
+			t.Errorf("%s expected error", step.Desc)
+		}
+		switch {
+		case proj == nil:
+			t.Errorf("%s = nil", step.Desc)
+		case proj.Name != step.ExpectName:
+			t.Errorf("%s.Name = %q; want %q", step.Desc, proj.Name, step.ExpectName)
+		}
+	}
+}
+
 type mockCatalog map[string]*Project
 
 func (mc mockCatalog) List() ([]string, error) {
@@ -175,4 +489,46 @@ func (mc mockCatalog) ShortName(id ID) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+var errMockCatalogFail = errors.New("catalog: time to fail")
+
+type mockFailCatalog struct {
+	mockCatalog
+	Fail bool
+}
+
+func (mc *mockFailCatalog) List() ([]string, error) {
+	if mc.Fail {
+		return nil, errMockCatalogFail
+	}
+	return mc.mockCatalog.List()
+}
+
+func (mc *mockFailCatalog) GetProject(shortName string) (*Project, error) {
+	if mc.Fail {
+		return nil, errMockCatalogFail
+	}
+	return mc.mockCatalog.GetProject(shortName)
+}
+
+func (mc *mockFailCatalog) PutProject(project *Project) error {
+	if mc.Fail {
+		return errMockCatalogFail
+	}
+	return mc.mockCatalog.PutProject(project)
+}
+
+func (mc *mockFailCatalog) DelProject(shortName string) error {
+	if mc.Fail {
+		return errMockCatalogFail
+	}
+	return mc.mockCatalog.DelProject(shortName)
+}
+
+func (mc *mockFailCatalog) ShortName(id ID) (string, error) {
+	if mc.Fail {
+		return "", errMockCatalogFail
+	}
+	return mc.mockCatalog.ShortName(id)
 }
