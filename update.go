@@ -22,6 +22,7 @@ func cmdCreate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	addFormFlag(fset, form, projectFormHomepageKey, "project homepage")
 	addFormFlag(fset, form, projectFormVCSTypeKey, "type of VCS for project")
 	addFormFlag(fset, form, projectFormVCSURLKey, "project VCS URL")
+	addFormFlag(fset, form, projectFormDescriptionKey, "human-readable project description")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
 		cmd.PrintSynopsis(set)
@@ -57,6 +58,7 @@ func cmdUpdate(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	addFormFlag(fset, form, projectFormHomepageKey, "project homepage")
 	addFormFlag(fset, form, projectFormVCSTypeKey, "type of VCS for project")
 	addFormFlag(fset, form, projectFormVCSURLKey, "project VCS URL")
+	addFormFlag(fset, form, projectFormDescriptionKey, "human-readable project description")
 	parseFlags(fset, args)
 	if fset.NArg() != 1 {
 		cmd.PrintSynopsis(set)

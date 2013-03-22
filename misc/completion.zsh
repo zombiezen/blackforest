@@ -67,6 +67,7 @@ __glados_complete() {
     create)
         _arguments : ${globalflags[@]} \
             '-created=[project creation date, formatted as RFC3339]' \
+            '-description=[human-readable project description]' \
             '-path=[path of working copy]:file:_path_files -/' \
             '-shortname=[identifier for project]' \
             '-tags=[comma-separated tags to assign to the new project]' \
@@ -79,6 +80,7 @@ __glados_complete() {
             '-addtags=[add tags to the project, separated by commas]' \
             '-created=[project creation date, formatted as RFC3339]' \
             '-deltags=[delete tags from the project, separated by commas]' \
+            '-description=[human-readable project description]' \
             '-name=[human-readable name of project]' \
             '-path=[path of working copy]:file:_path_files -/' \
             "-tags=[set the project's tags, separated by commas]" \
