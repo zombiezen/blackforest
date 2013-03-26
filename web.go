@@ -115,11 +115,29 @@ func handleSearch(cat catalog.Catalog, w http.ResponseWriter, req *http.Request)
 
 func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
 	sn := mux.Vars(req)["project"]
+	htmlAccept, jsonAccept := 1.0, 0.0
+	if h := req.Header.Get(webapp.HeaderAccept); h != "" {
+		accept, err := webapp.ParseAcceptHeader(h)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return nil
+		}
+		htmlAccept = accept.Quality("text/html", map[string][]string{"charset": {"utf-8"}})
+		jsonAccept = accept.Quality("application/json", map[string][]string{"charset": {"utf-8"}})
+		if htmlAccept == 0 && jsonAccept == 0 {
+			http.Error(w, "projects can either be text/html or application/json", http.StatusNotAcceptable)
+			return nil
+		}
+	}
+
 	proj, err := cat.(*catalog.Cache).RefreshProject(sn)
 	if err != nil {
 		return err
 	} else if proj == nil {
 		return webapp.NotFound
+	}
+	if jsonAccept > htmlAccept {
+		return webapp.JSONResponse(w, proj)
 	}
 	return tmpl.ExecuteTemplate(w, "project.html", proj)
 }
