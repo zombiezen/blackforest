@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"bitbucket.org/zombiezen/glados/catalog"
@@ -19,10 +20,13 @@ import (
 )
 
 type webEnv struct {
-	cat      catalog.Catalog
+	cat      *catalog.Cache
+	realCat  catalog.Catalog
 	router   *mux.Router
 	tmpl     *template.Template
 	searcher search.Searcher
+
+	sync.RWMutex
 }
 
 func (env *webEnv) routerPath(name string, pairs ...string) string {
@@ -38,6 +42,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	addr := fset.String("listen", "localhost:10710", "address to listen for HTTP")
 	templateDir := fset.String("templatedir", "templates", "template directory")
 	staticDir := fset.String("staticdir", "static", "static directory")
+	refresh := fset.Duration("refresh", 1*time.Minute, "interval between catalog cache refreshes")
 	parseFlags(fset, args)
 	if fset.NArg() != 0 {
 		cmd.PrintSynopsis(set)
@@ -45,9 +50,9 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	}
 
 	env := new(webEnv)
-	env.cat = requireCatalog()
+	env.realCat = requireCatalog()
 	var err error
-	if env.cat, err = catalog.NewCache(env.cat); err != nil {
+	if env.cat, err = catalog.NewCache(env.realCat); err != nil {
 		return err
 	}
 	if env.searcher, err = search.NewTextSearch(env.cat); err != nil {
@@ -78,6 +83,8 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	if _, err := env.tmpl.ParseGlob(filepath.Join(*templateDir, "*.html")); err != nil {
 		return err
 	}
+
+	go refreshEnvJob(env, *refresh)
 
 	return http.ListenAndServe(*addr, env.router)
 }
@@ -142,7 +149,7 @@ func handleProject(env *webEnv, w http.ResponseWriter, req *http.Request) error 
 		}
 	}
 
-	proj, err := env.cat.(*catalog.Cache).RefreshProject(sn)
+	proj, err := env.cat.RefreshProject(sn)
 	if err != nil {
 		return err
 	} else if proj == nil {
@@ -186,7 +193,7 @@ func handlePutProject(env *webEnv, w http.ResponseWriter, req *http.Request) err
 		return nil
 	}
 
-	proj, err := env.cat.(*catalog.Cache).RefreshProject(sn)
+	proj, err := env.cat.RefreshProject(sn)
 	if err != nil {
 		return err
 	} else if proj == nil {
@@ -213,17 +220,15 @@ type tagSidebar struct {
 }
 
 func handleTagIndex(env *webEnv, w http.ResponseWriter, req *http.Request) error {
-	cache := env.cat.(*catalog.Cache)
-	return env.tmpl.ExecuteTemplate(w, "tag-index.html", tagSidebar{Groups: organizeTags(cache)})
+	return env.tmpl.ExecuteTemplate(w, "tag-index.html", tagSidebar{Groups: organizeTags(env.cat)})
 }
 
 func handleTag(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 	tag := mux.Vars(req)["tag"]
 
-	cache := env.cat.(*catalog.Cache)
-	tags := organizeTags(cache)
+	tags := organizeTags(env.cat)
 
-	names := cache.FindTag(tag)
+	names := env.cat.FindTag(tag)
 	if len(names) == 0 {
 		return webapp.NotFound
 	}
@@ -255,7 +260,11 @@ type handler struct {
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	method, path := req.Method, req.URL.Path
 	rb := new(webapp.ResponseBuffer)
+
+	h.Env.RLock()
 	err := h.Func(h.Env, rb, req)
+	h.Env.RUnlock()
+
 	if err == nil {
 		if rb.HeaderSent().Get(webapp.HeaderContentLength) == "" {
 			webapp.ContentLength(w.Header(), rb.Size())
@@ -286,6 +295,37 @@ func staticDirRoute(r *mux.Router, prefix, path string) *mux.Route {
 		req.URL.Path = mux.Vars(req)["path"]
 		fs.ServeHTTP(w, req)
 	})
+}
+
+func refreshEnvJob(env *webEnv, d time.Duration) {
+	for t := range time.Tick(d) {
+		env.RLock()
+		cat := env.realCat
+		env.RUnlock()
+
+		// Refresh cache and searcher
+		// Even though the cache can be recreated using RefreshAll, we don't
+		// want to block requests for that long.  Creating a new cache uses a
+		// bit more memory during refresh, but does not affect QPS.
+		cache, err := catalog.NewCache(cat)
+		if err != nil {
+			log.Println("refresh cache:", err)
+			continue
+		}
+		searcher, err := search.NewTextSearch(cache)
+		if err != nil {
+			log.Println("refresh search:", err)
+			continue
+		}
+
+		// Update environment (temporarily blocks requests)
+		env.Lock()
+		env.cat = cache
+		env.searcher = searcher
+		env.Unlock()
+
+		log.Println("refresh took", time.Since(t))
+	}
 }
 
 type tagInfo struct {
