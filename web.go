@@ -18,11 +18,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var (
+type webEnv struct {
+	cat      catalog.Catalog
 	router   *mux.Router
 	tmpl     *template.Template
 	searcher search.Searcher
-)
+}
+
+func (env *webEnv) routerPath(name string, pairs ...string) string {
+	u, err := env.router.Get(name).URLPath(pairs...)
+	if err != nil {
+		panic(err)
+	}
+	return u.Path
+}
 
 func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	fset := cmd.FlagSet(set)
@@ -34,59 +43,62 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		cmd.PrintSynopsis(set)
 		return exitError(exitUsage)
 	}
-	cat := requireCatalog()
+
+	env := new(webEnv)
+	env.cat = requireCatalog()
 	var err error
-	if cat, err = catalog.NewCache(cat); err != nil {
+	if env.cat, err = catalog.NewCache(env.cat); err != nil {
 		return err
 	}
-	if searcher, err = search.NewTextSearch(cat); err != nil {
+	if env.searcher, err = search.NewTextSearch(env.cat); err != nil {
 		return err
 	}
 
-	router = mux.NewRouter()
-	router.Handle("/", &handler{cat, handleIndex}).Name("index")
-	router.Handle("/search", &handler{cat, handleSearch}).Name("search")
-	router.Handle("/project/", &handler{cat, handlePostProject}).Methods("POST").Name("postproject")
-	router.Handle("/project/{project}", &handler{cat, handleProject}).Methods("GET", "HEAD").Name("project")
-	router.Handle("/project/{project}", &handler{cat, handlePutProject}).Methods("PUT").Name("putproject")
-	router.Handle("/tag/", &handler{cat, handleTagIndex}).Name("tagindex")
-	router.Handle("/tag/{tag}", &handler{cat, handleTag}).Name("tag")
-	staticDirRoute(router, "/css/", filepath.Join(*staticDir, "css")).Name("css")
-	staticDirRoute(router, "/img/", filepath.Join(*staticDir, "img")).Name("img")
-	staticDirRoute(router, "/js/", filepath.Join(*staticDir, "js")).Name("js")
+	r := mux.NewRouter()
+	r.Handle("/", &handler{env, handleIndex}).Name("index")
+	r.Handle("/search", &handler{env, handleSearch}).Name("search")
+	r.Handle("/project/", &handler{env, handlePostProject}).Methods("POST").Name("postproject")
+	r.Handle("/project/{project}", &handler{env, handleProject}).Methods("GET", "HEAD").Name("project")
+	r.Handle("/project/{project}", &handler{env, handlePutProject}).Methods("PUT").Name("putproject")
+	r.Handle("/tag/", &handler{env, handleTagIndex}).Name("tagindex")
+	r.Handle("/tag/{tag}", &handler{env, handleTag}).Name("tag")
+	staticDirRoute(r, "/css/", filepath.Join(*staticDir, "css")).Name("css")
+	staticDirRoute(r, "/img/", filepath.Join(*staticDir, "img")).Name("img")
+	staticDirRoute(r, "/js/", filepath.Join(*staticDir, "js")).Name("js")
+	env.router = r
 
-	tmpl = template.New("")
-	webapp.AddFuncs(tmpl, router)
-	tmpl.Funcs(template.FuncMap{
+	env.tmpl = template.New("")
+	webapp.AddFuncs(env.tmpl, env.router)
+	env.tmpl.Funcs(template.FuncMap{
 		"prettyurl": prettyurl,
 		"ellipsis":  ellipsis,
 		"stringeq":  func(a, b string) bool { return a == b },
 		"rfc3339":   rfc3339,
 	})
-	if _, err := tmpl.ParseGlob(filepath.Join(*templateDir, "*.html")); err != nil {
+	if _, err := env.tmpl.ParseGlob(filepath.Join(*templateDir, "*.html")); err != nil {
 		return err
 	}
 
-	return http.ListenAndServe(*addr, router)
+	return http.ListenAndServe(*addr, env.router)
 }
 
-func handleIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+func handleIndex(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 	now := time.Now()
-	list, err := cat.List()
+	list, err := env.cat.List()
 	if err != nil {
 		return err
 	}
 	sort.Strings(list)
 	projects := make([]*catalog.Project, 0, len(list))
 	for _, sn := range list {
-		p, err := cat.GetProject(sn)
+		p, err := env.cat.GetProject(sn)
 		if err == nil {
 			projects = append(projects, p)
 		} else {
 			log.Printf("error fetching %s from list: %v", sn, err)
 		}
 	}
-	return tmpl.ExecuteTemplate(w, "index.html", struct {
+	return env.tmpl.ExecuteTemplate(w, "index.html", struct {
 		Projects []*catalog.Project
 		Now      time.Time
 	}{
@@ -94,18 +106,18 @@ func handleIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) 
 	})
 }
 
-func handleSearch(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+func handleSearch(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 	query := req.FormValue("q")
 	var results []search.Result
 	if query != "" {
 		var err error
-		results, err = searcher.Search(query)
+		results, err = env.searcher.Search(query)
 		if err != nil {
 			return err
 		}
 	}
 
-	return tmpl.ExecuteTemplate(w, "search.html", struct {
+	return env.tmpl.ExecuteTemplate(w, "search.html", struct {
 		Query   string
 		Results []search.Result
 	}{
@@ -113,7 +125,7 @@ func handleSearch(cat catalog.Catalog, w http.ResponseWriter, req *http.Request)
 	})
 }
 
-func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+func handleProject(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 	sn := mux.Vars(req)["project"]
 	htmlAccept, jsonAccept := 1.0, 0.0
 	if h := req.Header.Get(webapp.HeaderAccept); h != "" {
@@ -130,7 +142,7 @@ func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request
 		}
 	}
 
-	proj, err := cat.(*catalog.Cache).RefreshProject(sn)
+	proj, err := env.cat.(*catalog.Cache).RefreshProject(sn)
 	if err != nil {
 		return err
 	} else if proj == nil {
@@ -139,10 +151,10 @@ func handleProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request
 	if jsonAccept > htmlAccept {
 		return webapp.JSONResponse(w, proj)
 	}
-	return tmpl.ExecuteTemplate(w, "project.html", proj)
+	return env.tmpl.ExecuteTemplate(w, "project.html", proj)
 }
 
-func handlePostProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+func handlePostProject(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 	if err := req.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return nil
@@ -156,25 +168,25 @@ func handlePostProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Req
 		// TODO(light): handle form errors
 		return err
 	}
-	if err := cat.PutProject(proj); err != nil {
+	if err := env.cat.PutProject(proj); err != nil {
 		return err
 	}
 
-	projPath := routerPath("project", "project", proj.ShortName)
+	projPath := env.routerPath("project", "project", proj.ShortName)
 	w.Header().Set(webapp.HeaderLocation, projPath)
 	w.Header().Set(webapp.HeaderContentType, webapp.JSONType)
 	w.WriteHeader(http.StatusCreated)
 	return json.NewEncoder(w).Encode(proj)
 }
 
-func handlePutProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+func handlePutProject(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 	sn := mux.Vars(req)["project"]
 	if err := req.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return nil
 	}
 
-	proj, err := cat.(*catalog.Cache).RefreshProject(sn)
+	proj, err := env.cat.(*catalog.Cache).RefreshProject(sn)
 	if err != nil {
 		return err
 	} else if proj == nil {
@@ -189,7 +201,7 @@ func handlePutProject(cat catalog.Catalog, w http.ResponseWriter, req *http.Requ
 		return err
 	}
 
-	if err := cat.PutProject(proj); err != nil {
+	if err := env.cat.PutProject(proj); err != nil {
 		return err
 	}
 	return webapp.JSONResponse(w, proj)
@@ -200,15 +212,15 @@ type tagSidebar struct {
 	Active string
 }
 
-func handleTagIndex(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
-	cache := cat.(*catalog.Cache)
-	return tmpl.ExecuteTemplate(w, "tag-index.html", tagSidebar{Groups: organizeTags(cache)})
+func handleTagIndex(env *webEnv, w http.ResponseWriter, req *http.Request) error {
+	cache := env.cat.(*catalog.Cache)
+	return env.tmpl.ExecuteTemplate(w, "tag-index.html", tagSidebar{Groups: organizeTags(cache)})
 }
 
-func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error {
+func handleTag(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 	tag := mux.Vars(req)["tag"]
 
-	cache := cat.(*catalog.Cache)
+	cache := env.cat.(*catalog.Cache)
 	tags := organizeTags(cache)
 
 	names := cache.FindTag(tag)
@@ -218,7 +230,7 @@ func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) er
 	sort.Strings(names)
 	projects := make([]*catalog.Project, 0, len(names))
 	for _, sn := range names {
-		p, err := cat.GetProject(sn)
+		p, err := env.cat.GetProject(sn)
 		if err == nil {
 			projects = append(projects, p)
 		} else {
@@ -226,7 +238,7 @@ func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) er
 		}
 	}
 
-	return tmpl.ExecuteTemplate(w, "tag.html", struct {
+	return env.tmpl.ExecuteTemplate(w, "tag.html", struct {
 		Tag      string
 		Sidebar  tagSidebar
 		Projects []*catalog.Project
@@ -236,14 +248,14 @@ func handleTag(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) er
 }
 
 type handler struct {
-	Catalog catalog.Catalog
-	Func    func(cat catalog.Catalog, w http.ResponseWriter, req *http.Request) error
+	Env  *webEnv
+	Func func(env *webEnv, w http.ResponseWriter, req *http.Request) error
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	method, path := req.Method, req.URL.Path
 	rb := new(webapp.ResponseBuffer)
-	err := h.Func(h.Catalog, rb, req)
+	err := h.Func(h.Env, rb, req)
 	if err == nil {
 		if rb.HeaderSent().Get(webapp.HeaderContentLength) == "" {
 			webapp.ContentLength(w.Header(), rb.Size())
@@ -331,14 +343,6 @@ type byTagCount []tagInfo
 func (t byTagCount) Len() int           { return len(t) }
 func (t byTagCount) Less(i, j int) bool { return t[i].Count > t[j].Count }
 func (t byTagCount) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
-
-func routerPath(name string, pairs ...string) string {
-	u, err := router.Get(name).URLPath(pairs...)
-	if err != nil {
-		panic(err)
-	}
-	return u.Path
-}
 
 func prettyurl(u string) string {
 	if uu, err := url.Parse(u); err == nil {
