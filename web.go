@@ -70,6 +70,9 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	staticDirRoute(r, "/css/", filepath.Join(*staticDir, "css")).Name("css")
 	staticDirRoute(r, "/img/", filepath.Join(*staticDir, "img")).Name("img")
 	staticDirRoute(r, "/js/", filepath.Join(*staticDir, "js")).Name("js")
+	r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(*staticDir, "img", "favicon.ico"))
+	}).Name("favicon")
 	env.router = r
 
 	env.tmpl = template.New("")
