@@ -17,11 +17,31 @@
         </form>
         {{range .Results}}
         <div class="searchresult">
-            <h2><a href="{{path "project" "project" .ShortName}}">{{.ShortName}}</a></h2>
-            {{with .Snippet}}<p>{{.}}</p>{{end}}
+            {{with .Project}}<h2><a href="{{path "project" "project" .ShortName}}">{{.Name}}</a></h2>{{end}}
+            {{with .Result.Snippet}}
+            <p>{{.}}</p>
+            {{else}}
+            {{with .Project.Description}}<p>{{.}}</p>{{end}}
+            {{end}}
         </div>
         {{else}}
         {{if .Query}}<p class="lead">No results found</p>{{end}}
+        {{end}}
+
+        {{if inteq .PageCount 1 | not | and .Results}}
+        <div class="pagination">
+            <ul>
+                {{with prevPage .Page .PageCount}}<li><a href="?q={{$.Query}}&page={{.}}">&laquo;</a></li>{{else}}<li class="disabled"><span>&laquo;</span></li>{{end}}
+                {{range prevPageList .Page .PageCount 5}}
+                <li><a href="?q={{$.Query}}&page={{.}}">{{.}}</a></li>
+                {{end}}
+                <li class="active"><a href="?q={{$.Query}}&page={{.Page}}">{{.Page}}</a></li>
+                {{range nextPageList .Page .PageCount 5}}
+                <li><a href="?q={{$.Query}}&page={{.}}">{{.}}</a></li>
+                {{end}}
+                {{with nextPage .Page .PageCount}}<li><a href="?q={{$.Query}}&page={{.}}">&raquo;</a></li>{{else}}<li class="disabled"><span>&raquo;</span></li>{{end}}
+            </ul>
+        </div>
         {{end}}
 {{template "footer.html"}}
     </div>

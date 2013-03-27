@@ -78,10 +78,15 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	env.tmpl = template.New("")
 	webapp.AddFuncs(env.tmpl, env.router)
 	env.tmpl.Funcs(template.FuncMap{
-		"prettyurl": prettyurl,
-		"ellipsis":  ellipsis,
-		"stringeq":  func(a, b string) bool { return a == b },
-		"rfc3339":   rfc3339,
+		"prettyurl":    prettyurl,
+		"ellipsis":     ellipsis,
+		"stringeq":     func(a, b string) bool { return a == b },
+		"inteq":        func(a, b int) bool { return a == b },
+		"rfc3339":      rfc3339,
+		"prevPage":     prevPage,
+		"nextPage":     nextPage,
+		"prevPageList": prevPageList,
+		"nextPageList": nextPageList,
 	})
 	if _, err := env.tmpl.ParseGlob(filepath.Join(*templateDir, "*.html")); err != nil {
 		return err
@@ -117,22 +122,58 @@ func handleIndex(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 }
 
 func handleSearch(env *webEnv, w http.ResponseWriter, req *http.Request) error {
-	query := req.FormValue("q")
-	var results []search.Result
-	if query != "" {
-		var err error
-		results, err = env.searcher.Search(query)
+	const perPage = 10
+
+	type projectResult struct {
+		*catalog.Project
+		search.Result
+	}
+	var v struct {
+		Query   string
+		Results []projectResult
+
+		Page      int
+		PageCount int
+	}
+	var params struct {
+		Query string `schema:"q"`
+		Page  int    `schema:"page"`
+	}
+	params.Page = 1
+	if err := req.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return nil
+	}
+	if err := decoder.Decode(&params, req.Form); err != nil {
+		log.Println("search form decode:", err)
+	}
+
+	v.Query = params.Query
+	v.Page = params.Page
+	if v.Query != "" {
+		results, err := env.searcher.Search(v.Query)
 		if err != nil {
 			return err
 		}
+		v.PageCount = (len(results) + perPage - 1) / perPage
+		if v.Page < 1 || (v.Page > v.PageCount && v.PageCount != 0) {
+			return webapp.NotFound
+		}
+
+		v.Results = make([]projectResult, 0, perPage)
+		for i := (v.Page - 1) * perPage; i < v.Page*perPage && i < len(results); i++ {
+			r := results[i]
+			p, err := env.cat.GetProject(r.ShortName)
+			if err != nil {
+				return err
+			}
+			if p != nil {
+				v.Results = append(v.Results, projectResult{p, r})
+			}
+		}
 	}
 
-	return env.tmpl.ExecuteTemplate(w, "search.html", struct {
-		Query   string
-		Results []search.Result
-	}{
-		query, results,
-	})
+	return env.tmpl.ExecuteTemplate(w, "search.html", v)
 }
 
 func handleProject(env *webEnv, w http.ResponseWriter, req *http.Request) error {
@@ -416,6 +457,62 @@ func ellipsis(n int, s string) string {
 		return s
 	}
 	return string(r[:n-width]) + ellipsis
+}
+
+func prevPage(curr, n int) int {
+	if curr <= 1 {
+		return 0
+	}
+	return curr - 1
+}
+
+func nextPage(curr, n int) int {
+	if curr >= n {
+		return 0
+	}
+	return curr + 1
+}
+
+func prevPageList(curr, n int, size int) []int {
+	var start, end int
+	end = curr - 1
+	switch {
+	case curr < 1+size/2 || n < size:
+		start = 1
+	case curr > n-size/2:
+		start = n - size + 1
+	default:
+		start = curr - size/2
+	}
+	if start > end {
+		return []int{}
+	}
+	list := make([]int, 0, end-start+1)
+	for i := start; i <= end; i++ {
+		list = append(list, i)
+	}
+	return list
+}
+
+func nextPageList(curr, n int, size int) []int {
+	var start, end int
+	start = curr + 1
+	switch {
+	case curr > n-size/2 || n < size:
+		end = n
+	case curr < 1+size/2:
+		end = size
+	default:
+		end = curr + size/2
+	}
+	if start > end {
+		return []int{}
+	}
+	list := make([]int, 0, end-start+1)
+	for i := start; i <= end; i++ {
+		list = append(list, i)
+	}
+	return list
 }
 
 type stable struct {
