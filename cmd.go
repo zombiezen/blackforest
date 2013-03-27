@@ -464,7 +464,7 @@ func cmdSearch(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		cmd.PrintSynopsis(set)
 		return exitError(exitUsage)
 	}
-	query := strings.Join(args, " ")
+	query := strings.Join(fset.Args(), " ")
 	cat := requireCatalog()
 
 	s, err := search.NewTextSearch(cat)
