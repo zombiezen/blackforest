@@ -20,14 +20,49 @@
         return newAlert;
     };
 
+    function serializeExclude(form, excludeList) {
+        var data = $(form).serializeArray();
+        for (var i = 0; i < data.length; ) {
+            var removed = false;
+            for (var j = 0; j < excludeList.length; j++) {
+                if (data[i].name == excludeList[j]) {
+                    removed = true;
+                    data = data.splice(i, 1);
+                    break;
+                }
+            }
+            if (!removed) {
+                i++;
+            }
+        }
+        return $.param(data);
+    };
+
+    var vcsInput = $('#createform *[name="vcs"], #editform *[name="vcs"]');
+    var vcsurlInput = $('#createform input[name="vcsurl"], #editform input[name="vcsurl"]');
+    if (vcsInput.val() == "") {
+        vcsurlInput.attr("disabled", "disabled");
+    }
+    vcsInput.change(function(e) {
+        if (vcsInput.val() == "") {
+            vcsurlInput.attr("disabled", "disabled");
+        } else {
+            vcsurlInput.removeAttr("disabled");
+        }
+    });
+
     $("#createform").submit(function(e) {
         e.preventDefault();
         e.stopPropagation();
 
         var form = $("#createform");
         var action = form.attr("action");
+        var excluded = [];
+        if (vcsInput.val() == "") {
+            excluded.push("vcsurl");
+        }
         $.ajax(action, {
-            "data": form.serialize(),
+            "data": serializeExclude(form, excluded),
             "type": "POST",
             "success": function(data, status, xhr) {
                 var loc = xhr.getResponseHeader("Location");
@@ -45,8 +80,12 @@
 
         var form = $("#editform");
         var action = form.attr("action");
+        var excluded = [];
+        if (vcsInput.val() == "") {
+            excluded.push("vcsurl");
+        }
         $.ajax(action, {
-            "data": form.serialize(),
+            "data": serializeExclude(form, excluded),
             "type": "PUT",
             "success": function(data, status, xhr) {
                 var shortName = $('input[name="shortname"]', form).val();
