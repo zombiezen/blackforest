@@ -66,6 +66,12 @@ class glados {
         environment => "GOPATH=$gopath",
     }
 
+    file { "/home/$user/glados-reload":
+        ensure => file,
+        content => template("glados/glados-reload.bash"),
+        mode => 755,
+    }
+
     exec { "glados-install":
         require => Exec["glados-deps"],
         command => "/usr/local/go/bin/go install $importpath",
