@@ -32,7 +32,7 @@ func TestMercurialCheckout(t *testing.T) {
 	err := hg.checkout(cloneURL, wcPath)
 	mc.check(t)
 	if err != nil {
-		t.Error("hg.checkout(%q, %q) error:", cloneURL, wcPath, err)
+		t.Errorf("hg.checkout(%q, %q) error: %v", cloneURL, wcPath, err)
 	}
 }
 

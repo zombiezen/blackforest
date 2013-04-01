@@ -38,7 +38,7 @@ func TestCacheAccess(t *testing.T) {
 
 	sn, err := c.ShortName(magicID)
 	if sn != "glados" {
-		t.Errorf("Cache.ShortName(%q) = %q; want %q", sn, "glados")
+		t.Errorf("Cache.ShortName(%v) = %q; want %q", magicID, sn, "glados")
 	}
 	if err != nil {
 		t.Errorf("Cache.ShortName(%v) error: %v", magicID, err)

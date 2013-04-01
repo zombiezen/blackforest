@@ -32,7 +32,7 @@ func TestSubversionCheckout(t *testing.T) {
 	err := svn.checkout(cloneURL, wcPath)
 	mc.check(t)
 	if err != nil {
-		t.Error("svn.checkout(%q, %q) error:", cloneURL, wcPath, err)
+		t.Errorf("svn.checkout(%q, %q) error: %v", cloneURL, wcPath, err)
 	}
 }
 

@@ -32,7 +32,7 @@ func TestBazaarCheckout(t *testing.T) {
 	err := bzr.checkout(cloneURL, wcPath)
 	mc.check(t)
 	if err != nil {
-		t.Error("bzr.checkout(%q, %q) error:", cloneURL, wcPath, err)
+		t.Errorf("bzr.checkout(%q, %q) error: %v", cloneURL, wcPath, err)
 	}
 }
 
