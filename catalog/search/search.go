@@ -23,8 +23,9 @@ type Result struct {
 }
 
 type textSearch struct {
-	c catalog.Catalog
-	i map[string][]indexEntry
+	c    catalog.Catalog
+	i    map[string][]indexEntry
+	list []string
 }
 
 // NewTextSearch returns a Searcher that performs full text search over the
@@ -32,13 +33,14 @@ type textSearch struct {
 // The Searcher maintains its own in-memory index of the catalog.  You must
 // create a new index if the underlying catalog is modified.
 func NewTextSearch(cat catalog.Catalog) (Searcher, error) {
-	ts := &textSearch{
-		c: cat,
-		i: make(map[string][]indexEntry),
-	}
 	names, err := cat.List()
 	if err != nil {
 		return nil, err
+	}
+	ts := &textSearch{
+		c:    cat,
+		i:    make(map[string][]indexEntry),
+		list: names,
 	}
 	for _, n := range names {
 		if err := ts.build(n); err != nil {
@@ -49,85 +51,155 @@ func NewTextSearch(cat catalog.Catalog) (Searcher, error) {
 }
 
 func (ts *textSearch) Search(q string) ([]Result, error) {
-	tokens := tokenize(q)
-	if len(tokens) == 0 {
-		return nil, nil
-	}
-
-	// Get results for each individual search term
-	type im struct {
-		i int
-		m map[string]*Result
-	}
-	c := make(chan im)
-	for i, tok := range tokens {
-		go func(i int, tok string) {
-			results := make(map[string]*Result)
-			tsi := ts.i[tok]
-			if len(tsi) == 0 {
-				c <- im{i, results}
-				return
-			}
-
-			for _, ent := range tsi {
-				sn := ent.shortName
-				r := results[sn]
-				if r == nil {
-					r = &Result{ShortName: sn}
-					results[sn] = r
-				}
-				r.Relevance += ent.kind.Weight()
-			}
-
-			var maxScore float32
-			for _, r := range results {
-				if r.Relevance > maxScore {
-					maxScore = r.Relevance
-				}
-			}
-			for _, r := range results {
-				r.Relevance /= maxScore
-			}
-
-			c <- im{i, results}
-		}(i, tok)
-	}
-
-	// Collect results for each term
-	master := make([]map[string]*Result, len(tokens))
-	minIdx := -1
-	for nret := 0; nret < len(tokens); nret++ {
-		ret := <-c
-		master[ret.i] = ret.m
-		if minIdx == -1 || len(ret.m) < len(master[minIdx]) {
-			minIdx = ret.i
-		}
-	}
-	maxResults := len(master[minIdx])
-	if maxResults == 0 {
+	query, err := parseQuery(q)
+	if err != nil {
+		return nil, err
+	} else if query == nil {
 		return []Result{}, nil
 	}
+	m := ts.search(query)
+	results := make([]Result, 0, len(m))
+	for _, r := range m {
+		results = append(results, *r)
+	}
+	sort.Sort(byRelevance(results))
+	return results, nil
+}
 
-	// Filter results and re-normalize relevance
-	resultSlice := make([]Result, 0, maxResults)
-	for sn := range master[minIdx] {
-		result := Result{
+func (ts *textSearch) search(q queryAST) map[string]*Result {
+	switch q := q.(type) {
+	case queryAnd:
+		return ts.searchAnd(q)
+	case queryOr:
+		return ts.searchOr(q)
+	case queryNot:
+		return ts.searchNot(q)
+	case token:
+		return ts.searchToken(q)
+	case tagAtom:
+		return ts.searchTagAtom(q)
+	}
+	panic("unknown queryAST type")
+}
+
+// A resultMap is a mapping from short name to Result.
+type resultMap map[string]*Result
+
+// Get gets or creates a result for a short name.
+func (m resultMap) Get(sn string) *Result {
+	r := m[sn]
+	if r == nil {
+		r = &Result{ShortName: sn}
+		m[sn] = r
+	}
+	return r
+}
+
+// Put adds r into m.
+func (m resultMap) Put(r *Result) {
+	m[r.ShortName] = r
+}
+
+func (ts *textSearch) searchAnd(q queryAnd) resultMap {
+	if len(q) == 0 {
+		return resultMap{}
+	}
+
+	// Map
+	c := make(chan resultMap)
+	for _, subq := range q {
+		go func(subq queryAST) {
+			c <- ts.search(subq)
+		}(subq)
+	}
+	maps := make([]resultMap, 0, len(q))
+	minIdx := -1
+	for nret := 0; nret < len(q); nret++ {
+		ret := <-c
+		maps = append(maps, ret)
+		if minIdx == -1 || len(ret) < len(maps[minIdx]) {
+			minIdx = nret
+		}
+	}
+
+	// Reduce
+	maxResults := len(maps[minIdx])
+	if maxResults == 0 {
+		return resultMap{}
+	}
+	results := make(resultMap, maxResults)
+	for sn := range maps[minIdx] {
+		result := &Result{
 			ShortName: sn,
 		}
-		for _, m := range master {
+		for _, m := range maps {
 			if r := m[sn]; r == nil {
 				result.Relevance = 0
 				break
 			} else {
-				result.Relevance += r.Relevance / float32(len(tokens))
+				result.Relevance += r.Relevance / float32(len(q))
 			}
 		}
 		if result.Relevance > 0 {
-			resultSlice = append(resultSlice, result)
+			results.Put(result)
 		}
 	}
-	sort.Sort(byRelevance(resultSlice))
-	return resultSlice, nil
+	return results
+}
+
+func (ts *textSearch) searchOr(q queryOr) resultMap {
+	if len(q) == 0 {
+		return resultMap{}
+	}
+
+	c := make(chan resultMap)
+	for _, subq := range q {
+		go func(subq queryAST) {
+			c <- ts.search(subq)
+		}(subq)
+	}
+	results := make(resultMap)
+	for nret := 0; nret < len(q); nret++ {
+		ret := <-c
+		for _, r := range ret {
+			results.Get(r.ShortName).Relevance += r.Relevance
+		}
+	}
+	return results
+}
+
+func (ts *textSearch) searchNot(q queryNot) resultMap {
+	m := ts.search(q.ast)
+	results := make(resultMap, len(ts.list)-len(m))
+	for _, sn := range ts.list {
+		if m[sn] == nil {
+			results.Put(&Result{ShortName: sn, Relevance: 1.0})
+		}
+	}
+	return results
+}
+
+func (ts *textSearch) searchToken(q token) resultMap {
+	tsi := ts.i[fold(string(q))]
+	if len(tsi) == 0 {
+		return resultMap{}
+	}
+	results := make(resultMap)
+	for _, ent := range tsi {
+		results.Get(ent.shortName).Relevance += ent.kind.Weight()
+	}
+	// XXX(light): should results be normalized?
+	return results
+}
+
+func (ts *textSearch) searchTagAtom(q tagAtom) resultMap {
+	results := make(resultMap)
+	for _, ent := range ts.i[fold(string(q))] {
+		if ent.kind == kindTag {
+			results.Put(&Result{ShortName: ent.shortName, Relevance: 1.0})
+		}
+	}
+	return results
 }
 
 func (ts *textSearch) build(sn string) error {
@@ -206,9 +278,15 @@ func tokenize(s string) []string {
 
 type byRelevance []Result
 
-func (r byRelevance) Len() int           { return len(r) }
-func (r byRelevance) Less(i, j int) bool { return r[i].Relevance > r[j].Relevance }
-func (r byRelevance) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r byRelevance) Len() int      { return len(r) }
+func (r byRelevance) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r byRelevance) Less(i, j int) bool {
+	ri, rj := r[i].Relevance, r[j].Relevance
+	if ri == rj {
+		return r[i].ShortName < r[j].ShortName
+	}
+	return ri > rj
+}
 
 // Concurrent dispatches a search to a list of search systems.
 type Concurrent []Searcher
