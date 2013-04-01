@@ -10,27 +10,29 @@ type Bazaar struct {
 	// Program is the path of the Bazaar executable.
 	Program string
 
-	commander commander
-	c         commandVCS
+	c commandVCS
 }
 
 var _ VCS = new(Bazaar)
 
 func (bzr *Bazaar) init() {
-	if bzr.c.vcs == nil {
-		bzr.c.init(bzr, "bzr", bzr.Program, bzr.commander)
-		bzr.c.specialDir = ".bzr"
-		bzr.c.checkout = "branch"
-		bzr.c.remove = "remove"
-		bzr.c.rename = "mv"
-		bzr.c.renameFlags = []string{"--after"}
-		bzr.c.current = func(wc *commandWC) (Rev, error) {
+	bzr.c = commandVCS{
+		vcs:         bzr,
+		name:        "bzr",
+		program:     "bzr",
+		specialDir:  ".bzr",
+		checkout:    "branch",
+		remove:      "remove",
+		rename:      "mv",
+		renameFlags: []string{"--after"},
+		current: func(wc *commandWC) (Rev, error) {
 			return bzrVersionInfo(wc)
-		}
-		bzr.c.parseRev = func(wc *commandWC, s string) (Rev, error) {
+		},
+		parseRev: func(wc *commandWC, s string) (Rev, error) {
 			return bzrVersionInfo(wc, "-r", s)
-		}
+		},
 	}
+	bzr.c.init(bzr.Program)
 }
 
 func (bzr *Bazaar) IsWorkingCopy(path string) (bool, error) {

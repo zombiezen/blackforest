@@ -56,18 +56,13 @@ type commandVCS struct {
 	parseRev func(*commandWC, string) (Rev, error)
 }
 
-func (c *commandVCS) init(vcs VCS, name string, program string, commander commander) {
-	c.vcs, c.name = vcs, name
-
-	if program == "" {
-		program = name
+func (c *commandVCS) init(program string) {
+	if program != "" {
+		c.program = program
 	}
-	c.program = program
-
-	if commander == nil {
-		commander = execCommander{}
+	if c.commander == nil {
+		c.commander = execCommander{}
 	}
-	c.commander = commander
 }
 
 // cmd creates a command for the given arguments.

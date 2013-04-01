@@ -10,24 +10,25 @@ type Mercurial struct {
 	// Program is the path of the Mercurial executable.
 	Program string
 
-	commander commander
-	c         commandVCS
+	c commandVCS
 }
 
 var _ VCS = new(Mercurial)
 
 func (hg *Mercurial) init() {
-	if hg.c.vcs == nil {
-		hg.c.init(hg, "hg", hg.Program, hg.commander)
-		hg.c.specialDir = ".hg"
-		hg.c.checkout = "clone"
-		hg.c.remove = "remove"
-		hg.c.rename = "rename"
-		hg.c.renameFlags = []string{"--after"}
-		hg.c.current = func(wc *commandWC) (Rev, error) {
+	hg.c = commandVCS{
+		vcs:         hg,
+		name:        "hg",
+		program:     "hg",
+		specialDir:  ".hg",
+		checkout:    "clone",
+		remove:      "remove",
+		rename:      "rename",
+		renameFlags: []string{"--after"},
+		current: func(wc *commandWC) (Rev, error) {
 			return hgIdentify(wc)
-		}
-		hg.c.parseRev = func(wc *commandWC, s string) (Rev, error) {
+		},
+		parseRev: func(wc *commandWC, s string) (Rev, error) {
 			if len(s) == hex.EncodedLen(mercurialRevSize) {
 				var rev mercurialRev
 				if _, err := hex.Decode(rev[:], []byte(s)); err == nil {
@@ -35,8 +36,9 @@ func (hg *Mercurial) init() {
 				}
 			}
 			return hgIdentify(wc, "-r", s)
-		}
+		},
 	}
+	hg.c.init(hg.Program)
 }
 
 func (hg *Mercurial) IsWorkingCopy(path string) (bool, error) {

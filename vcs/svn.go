@@ -11,19 +11,20 @@ type Subversion struct {
 	// Program is the path of the Subversion executable.
 	Program string
 
-	commander commander
-	c         commandVCS
+	c commandVCS
 }
 
 var _ VCS = new(Subversion)
 
 func (svn *Subversion) init() {
-	if svn.c.vcs == nil {
-		svn.c.init(svn, "svn", svn.Program, svn.commander)
-		svn.c.specialDir = ".svn"
-		svn.c.checkout = "checkout"
-		svn.c.remove = "delete"
-		svn.c.current = func(wc *commandWC) (Rev, error) {
+	svn.c = commandVCS{
+		vcs:        svn,
+		name:       "svn",
+		program:    "svn",
+		specialDir: ".svn",
+		checkout:   "checkout",
+		remove:     "delete",
+		current: func(wc *commandWC) (Rev, error) {
 			var v struct {
 				Entry struct {
 					Revision int `xml:"revision,attr"`
@@ -33,15 +34,16 @@ func (svn *Subversion) init() {
 				return nil, err
 			}
 			return subversionRev(v.Entry.Revision), nil
-		}
-		svn.c.parseRev = func(wc *commandWC, s string) (Rev, error) {
+		},
+		parseRev: func(wc *commandWC, s string) (Rev, error) {
 			n, err := strconv.Atoi(s)
 			if err != nil {
 				return nil, err
 			}
 			return subversionRev(n), nil
-		}
+		},
 	}
+	svn.c.init(svn.Program)
 }
 
 func (svn *Subversion) IsWorkingCopy(path string) (bool, error) {

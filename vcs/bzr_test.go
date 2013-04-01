@@ -11,8 +11,9 @@ const desiredBzrPath = "/wc"
 var magicBzrRev = bazaarRev{"john@example.com-20100303001707-e0f5uz51ddzrlag0", "42.1.1"}
 
 func newIsolatedBazaarWC(path string, c mockCommander) *commandWC {
-	bzr := Bazaar{Program: "bzr", commander: &c}
+	bzr := Bazaar{Program: "bzr"}
 	bzr.init()
+	bzr.c.commander = &c
 	return &commandWC{c: &bzr.c, path: path}
 }
 

@@ -10,8 +10,9 @@ const desiredSvnPath = "/wc"
 var magicSvnRev = subversionRev(1302)
 
 func newIsolatedSubversionWC(path string, c mockCommander) subversionWC {
-	svn := Subversion{Program: "svn", commander: &c}
+	svn := Subversion{Program: "svn"}
 	svn.init()
+	svn.c.commander = &c
 	return subversionWC{&commandWC{c: &svn.c, path: path}}
 }
 

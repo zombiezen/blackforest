@@ -11,8 +11,9 @@ const desiredHgPath = "/wc"
 var magicHgRev = mercurialRev{0x0d, 0x9c, 0x2b, 0x3c, 0x7b, 0xce, 0x68, 0xef, 0x99, 0x50, 0xd2, 0x37, 0xea, 0xc5, 0xff, 0x67, 0xf1, 0x17, 0xbf, 0xf5}
 
 func newIsolatedMercurialWC(path string, c mockCommander) mercurialWC {
-	hg := &Mercurial{Program: "hg", commander: &c}
+	hg := &Mercurial{Program: "hg"}
 	hg.init()
+	hg.c.commander = &c
 	return mercurialWC{&commandWC{c: &hg.c, path: path}}
 }
 
