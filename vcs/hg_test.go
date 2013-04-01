@@ -2,6 +2,7 @@ package vcs
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 )
 
@@ -9,30 +10,25 @@ const desiredHgPath = "/wc"
 
 var magicHgRev = mercurialRev{0x0d, 0x9c, 0x2b, 0x3c, 0x7b, 0xce, 0x68, 0xef, 0x99, 0x50, 0xd2, 0x37, 0xea, 0xc5, 0xff, 0x67, 0xf1, 0x17, 0xbf, 0xf5}
 
-func newIsolatedMercurialWC(path string, c mockCommander) *mercurialWC {
-	return &mercurialWC{
-		hg:   &Mercurial{Program: "hg", commander: &c},
-		path: path,
-	}
+func newIsolatedMercurialWC(path string, c mockCommander) mercurialWC {
+	hg := &Mercurial{Program: "hg", commander: &c}
+	hg.init()
+	return mercurialWC{&commandWC{c: &hg.c, path: path}}
 }
 
-func TestMercurialCheckout(t *testing.T) {
-	const (
-		wcPath   = "baz"
-		cloneURL = "http://example.com/foo/bar"
-	)
-	mc := mockCommander{
-		{
-			Out:        *bytes.NewBufferString(""),
-			ExpectArgs: []string{"hg", "clone", "--", cloneURL, wcPath},
-		},
+func TestMercurialInit(t *testing.T) {
+	wc := newIsolatedMercurialWC("/wc", mockCommander{})
+	if wc.c.checkout != "clone" {
+		t.Errorf("wc.c.checkout = %q; want %q", wc.c.checkout, "clone")
 	}
-	c := mc
-	hg := &Mercurial{Program: "hg", commander: &c}
-	err := hg.checkout(cloneURL, wcPath)
-	mc.check(t)
-	if err != nil {
-		t.Errorf("hg.checkout(%q, %q) error: %v", cloneURL, wcPath, err)
+	if wc.c.remove != "remove" {
+		t.Errorf("wc.c.remove = %q; want %q", wc.c.remove, "remove")
+	}
+	if wc.c.rename != "rename" {
+		t.Errorf("wc.c.rename = %q; want %q", wc.c.rename, "rename")
+	}
+	if want := ([]string{"--after"}); !reflect.DeepEqual(wc.c.renameFlags, want) {
+		t.Errorf("wc.c.rename = %q; want %q", wc.c.renameFlags, want)
 	}
 }
 
@@ -52,95 +48,6 @@ func TestMercurialCurrent(t *testing.T) {
 	}
 	if r := magicHgRev; rev != r {
 		t.Errorf("wc.Current() = %v; want %v", rev, r)
-	}
-}
-
-func TestMercurialAdd(t *testing.T) {
-	mc := mockCommander{
-		{
-			Out:        *bytes.NewBuffer([]byte{}),
-			ExpectDir:  desiredHgPath,
-			ExpectArgs: []string{"hg", "add", "path:foo", "path:bar"},
-		},
-	}
-	wc := newIsolatedMercurialWC(desiredHgPath, mc)
-	files := []string{"foo", "bar"}
-	err := wc.Add(files)
-	mc.check(t)
-	if err != nil {
-		t.Errorf("wc.Add(%q) error: %v", files, err)
-	}
-}
-
-func TestMercurialRemove(t *testing.T) {
-	mc := mockCommander{
-		{
-			Out:        *bytes.NewBuffer([]byte{}),
-			ExpectDir:  desiredHgPath,
-			ExpectArgs: []string{"hg", "remove", "path:foo", "path:bar"},
-		},
-	}
-	wc := newIsolatedMercurialWC(desiredHgPath, mc)
-	files := []string{"foo", "bar"}
-	err := wc.Remove(files)
-	mc.check(t)
-	if err != nil {
-		t.Errorf("wc.Remove(%q) error: %v", files, err)
-	}
-}
-
-func TestMercurialRename(t *testing.T) {
-	mc := mockCommander{
-		{
-			Out:        *bytes.NewBuffer([]byte{}),
-			ExpectDir:  desiredHgPath,
-			ExpectArgs: []string{"hg", "rename", "--after", "--", "foo", "bar"},
-		},
-	}
-	wc := newIsolatedMercurialWC(desiredHgPath, mc)
-	err := wc.Rename("foo", "bar")
-	mc.check(t)
-	if err != nil {
-		t.Errorf("wc.Rename(%q, %q) error: %v", "foo", "bar", err)
-	}
-}
-
-func TestMercurialCommit(t *testing.T) {
-	const commitMessage = "Hello, World!"
-
-	// files==nil test
-	{
-		mc := mockCommander{
-			{
-				Out:        *bytes.NewBuffer([]byte{}),
-				ExpectDir:  desiredHgPath,
-				ExpectArgs: []string{"hg", "commit", "-m", commitMessage},
-			},
-		}
-		wc := newIsolatedMercurialWC(desiredHgPath, mc)
-		err := wc.Commit("Hello, World!", nil)
-		mc.check(t)
-		if err != nil {
-			t.Errorf("wc.Commit(%q, nil) error: %v", commitMessage, err)
-		}
-	}
-
-	// files!=nil test
-	{
-		mc := mockCommander{
-			{
-				Out:        *bytes.NewBuffer([]byte{}),
-				ExpectDir:  desiredHgPath,
-				ExpectArgs: []string{"hg", "commit", "-m", commitMessage, "path:foo", "path:bar"},
-			},
-		}
-		wc := newIsolatedMercurialWC(desiredHgPath, mc)
-		files := []string{"foo", "bar"}
-		err := wc.Commit("Hello, World!", files)
-		mc.check(t)
-		if err != nil {
-			t.Errorf("wc.Commit(%q, %q) error: %v", commitMessage, files, err)
-		}
 	}
 }
 
@@ -174,6 +81,79 @@ func TestMercurialUpdate(t *testing.T) {
 		mc.check(t)
 		if err != nil {
 			t.Errorf("wc.Update(%v) error: %v", magicHgRev, err)
+		}
+	}
+}
+
+func TestMercurialAdd(t *testing.T) {
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBuffer([]byte{}),
+			ExpectDir:  "/wc",
+			ExpectArgs: []string{"hg", "add", "--", "path:foo", "path:bar"},
+		},
+	}
+	wc := newIsolatedMercurialWC("/wc", mc)
+	files := []string{"foo", "bar"}
+	err := wc.Add(files)
+	mc.check(t)
+	if err != nil {
+		t.Errorf("wc.Add(%q) error: %v", files, err)
+	}
+}
+
+func TestMercurialRemove(t *testing.T) {
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBuffer([]byte{}),
+			ExpectDir:  "/wc",
+			ExpectArgs: []string{"hg", "remove", "--", "path:foo", "path:bar"},
+		},
+	}
+	wc := newIsolatedMercurialWC("/wc", mc)
+	files := []string{"foo", "bar"}
+	err := wc.Remove(files)
+	mc.check(t)
+	if err != nil {
+		t.Errorf("wc.Add(%q) error: %v", files, err)
+	}
+}
+
+func TestMercurialCommit(t *testing.T) {
+	const commitMessage = "Hello, World!"
+
+	// files==nil test
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  "/wc",
+				ExpectArgs: []string{"hg", "commit", "-m", commitMessage},
+			},
+		}
+		wc := newIsolatedMercurialWC("/wc", mc)
+		err := wc.Commit("Hello, World!", nil)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Commit(%q, nil) error: %v", commitMessage, err)
+		}
+	}
+
+	// files!=nil test
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  "/wc",
+				ExpectArgs: []string{"hg", "commit", "-m", commitMessage, "--", "path:foo", "path:bar"},
+			},
+		}
+		wc := newIsolatedMercurialWC("/wc", mc)
+		files := []string{"foo", "bar"}
+		err := wc.Commit("Hello, World!", files)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Commit(%q, %q) error: %v", commitMessage, files, err)
 		}
 	}
 }

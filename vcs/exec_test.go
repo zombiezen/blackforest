@@ -114,3 +114,168 @@ func (mc *mockCommand) Wait() error {
 	// TODO(light): mock exit codes?
 	return nil
 }
+
+func newCommandWC(path string, mc mockCommander) *commandWC {
+	return &commandWC{
+		path: path,
+		c: &commandVCS{
+			name:      "commandVCS",
+			program:   "CMD",
+			commander: &mc,
+
+			checkout:    "CMDCHECKOUT",
+			remove:      "CMDREMOVE",
+			rename:      "CMDRENAME",
+			renameFlags: []string{"--foo"},
+		},
+	}
+}
+
+func TestCommandVCSCheckout(t *testing.T) {
+	const (
+		wcPath   = "baz"
+		cloneURL = "http://example.com/foo/bar"
+	)
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBufferString(""),
+			ExpectArgs: []string{"CMD", "CMDCHECKOUT", "--", cloneURL, wcPath},
+		},
+	}
+	c := newCommandWC(wcPath, mc).c
+	err := c.runCheckout(cloneURL, wcPath)
+	mc.check(t)
+	if err != nil {
+		t.Errorf("commandVCS.checkout(%q, %q) error: %v", cloneURL, wcPath, err)
+	}
+}
+
+func TestCommandWCAdd(t *testing.T) {
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBuffer([]byte{}),
+			ExpectDir:  "/wc",
+			ExpectArgs: []string{"CMD", "add", "--", "foo", "bar"},
+		},
+	}
+	wc := newCommandWC("/wc", mc)
+	files := []string{"foo", "bar"}
+	err := wc.Add(files)
+	mc.check(t)
+	if err != nil {
+		t.Errorf("wc.Add(%q) error: %v", files, err)
+	}
+}
+
+func TestCommandWCRemove(t *testing.T) {
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBuffer([]byte{}),
+			ExpectDir:  "/wc",
+			ExpectArgs: []string{"CMD", "CMDREMOVE", "--", "foo", "bar"},
+		},
+	}
+	wc := newCommandWC("/wc", mc)
+	files := []string{"foo", "bar"}
+	err := wc.Remove(files)
+	mc.check(t)
+	if err != nil {
+		t.Errorf("wc.Add(%q) error: %v", files, err)
+	}
+}
+
+func TestCommandWCRename(t *testing.T) {
+	mc := mockCommander{
+		{
+			Out:        *bytes.NewBuffer([]byte{}),
+			ExpectDir:  "/wc",
+			ExpectArgs: []string{"CMD", "CMDRENAME", "--foo", "--", "foo", "bar"},
+		},
+	}
+	wc := newCommandWC("/wc", mc)
+	err := wc.Rename("foo", "bar")
+	mc.check(t)
+	if err != nil {
+		t.Errorf("wc.Rename(%q, %q) error: %v", "foo", "bar", err)
+	}
+}
+
+func TestCommandWCCommit(t *testing.T) {
+	const commitMessage = "Hello, World!"
+
+	// files==nil test
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  "/wc",
+				ExpectArgs: []string{"CMD", "commit", "-m", commitMessage},
+			},
+		}
+		wc := newCommandWC("/wc", mc)
+		err := wc.Commit("Hello, World!", nil)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Commit(%q, nil) error: %v", commitMessage, err)
+		}
+	}
+
+	// files!=nil test
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  "/wc",
+				ExpectArgs: []string{"CMD", "commit", "-m", commitMessage, "--", "foo", "bar"},
+			},
+		}
+		wc := newCommandWC("/wc", mc)
+		files := []string{"foo", "bar"}
+		err := wc.Commit("Hello, World!", files)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Commit(%q, %q) error: %v", commitMessage, files, err)
+		}
+	}
+}
+
+type mockRev string
+
+func (rev mockRev) Rev() string    { return string(rev) }
+func (rev mockRev) String() string { return "STRING" + string(rev) }
+
+func TestCommandWCUpdate(t *testing.T) {
+	const magicRev mockRev = "xyzzy"
+
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  "/wc",
+				ExpectArgs: []string{"CMD", "update"},
+			},
+		}
+		wc := newCommandWC("/wc", mc)
+		err := wc.Update(nil)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Update(nil) error: %v", err)
+		}
+	}
+
+	{
+		mc := mockCommander{
+			{
+				Out:        *bytes.NewBuffer([]byte{}),
+				ExpectDir:  "/wc",
+				ExpectArgs: []string{"CMD", "update", "-r", string(magicRev)},
+			},
+		}
+		wc := newCommandWC("/wc", mc)
+		err := wc.Update(magicRev)
+		mc.check(t)
+		if err != nil {
+			t.Errorf("wc.Update(%v) error: %v", magicRev, err)
+		}
+	}
+}
