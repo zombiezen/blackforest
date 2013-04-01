@@ -12,7 +12,6 @@ import (
 
 	"bitbucket.org/zombiezen/glados/catalog"
 	"bitbucket.org/zombiezen/glados/catalog/search"
-	"bitbucket.org/zombiezen/glados/vcs"
 	"bitbucket.org/zombiezen/subcmd"
 )
 
@@ -408,15 +407,9 @@ func cmdCheckout(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		return &projectHasPathError{ShortName: proj.ShortName, Path: p}
 	}
 
-	var vc vcs.VCS
-	switch vt := proj.VCS.Type; vt {
-	case catalog.Mercurial:
-		vc = new(vcs.Mercurial)
-	case catalog.Subversion:
-		vc = new(vcs.Subversion)
-	case catalog.Bazaar:
-		vc = new(vcs.Bazaar)
-	default:
+	vt := proj.VCS.Type
+	vc := vcsImpl(vt)
+	if vc == nil {
 		return badVCSError(vt)
 	}
 	if _, err := vc.Checkout(proj.VCS.URL, absPath); err != nil {

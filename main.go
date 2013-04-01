@@ -142,20 +142,40 @@ func parseFlags(fset *flag.FlagSet, args []string) {
 	}
 }
 
-var validVCSTypes = []string{
-	catalog.CVS,
-	catalog.Subversion,
-	catalog.Mercurial,
-	catalog.Git,
-	catalog.Bazaar,
-	catalog.Darcs,
+var knownVCS = []struct {
+	Name string
+	Impl vcs.VCS
+}{
+	{catalog.CVS, nil},
+	{catalog.Subversion, new(vcs.Subversion)},
+	{catalog.Mercurial, new(vcs.Mercurial)},
+	{catalog.Git, nil},
+	{catalog.Bazaar, new(vcs.Bazaar)},
+	{catalog.Darcs, nil},
 }
 
-var validVCSText = strings.Join(validVCSTypes, ", ")
+var validVCSText string
+
+func init() {
+	names := make([]string, len(knownVCS))
+	for i := range names {
+		names[i] = knownVCS[i].Name
+	}
+	validVCSText = strings.Join(names, ", ")
+}
+
+func vcsImpl(t string) vcs.VCS {
+	for _, v := range knownVCS {
+		if t == v.Name {
+			return v.Impl
+		}
+	}
+	return nil
+}
 
 func isValidVCSType(t string) bool {
-	for _, v := range validVCSTypes {
-		if t == v {
+	for _, v := range knownVCS {
+		if t == v.Name {
 			return true
 		}
 	}
