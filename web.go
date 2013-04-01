@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -83,6 +84,7 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		"stringeq":     func(a, b string) bool { return a == b },
 		"inteq":        func(a, b int) bool { return a == b },
 		"rfc3339":      rfc3339,
+		"milliseconds": milliseconds,
 		"prevPage":     prevPage,
 		"nextPage":     nextPage,
 		"prevPageList": prevPageList,
@@ -129,8 +131,10 @@ func handleSearch(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 		search.Result
 	}
 	var v struct {
-		Query   string
-		Results []projectResult
+		Query     string
+		Results   []projectResult
+		NResults  int
+		TimeTaken time.Duration
 
 		Page      int
 		PageCount int
@@ -151,10 +155,13 @@ func handleSearch(env *webEnv, w http.ResponseWriter, req *http.Request) error {
 	v.Query = params.Query
 	v.Page = params.Page
 	if v.Query != "" {
+		start := time.Now()
 		results, err := env.searcher.Search(v.Query)
+		v.TimeTaken = time.Since(start)
 		if err != nil {
 			return err
 		}
+		v.NResults = len(results)
 		v.PageCount = (len(results) + perPage - 1) / perPage
 		if v.Page < 1 || (v.Page > v.PageCount && v.PageCount != 0) {
 			return webapp.NotFound
@@ -444,6 +451,22 @@ func prettyurl(u string) string {
 
 func rfc3339(t time.Time) string {
 	return t.Format(time.RFC3339)
+}
+
+func milliseconds(d time.Duration) string {
+	const (
+		suffix     = "ms"
+		unit       = time.Millisecond
+		fracPrec   = unit / 1000
+		fracDigits = 3
+	)
+
+	ms := strconv.FormatInt(int64(d/unit), 10)
+	frac := strconv.FormatInt(int64((d%unit)/fracPrec), 10)
+	for len(frac) < fracDigits {
+		frac = "0" + frac
+	}
+	return ms + "." + frac + suffix
 }
 
 func ellipsis(n int, s string) string {

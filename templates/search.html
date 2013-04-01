@@ -43,6 +43,10 @@
             </ul>
         </div>
         {{end}}
+
+        {{if .Query}}
+        <p>{{.NResults}} {{if inteq .NResults 1}}result{{else}}results{{end}} in {{.TimeTaken|milliseconds}}.</p>
+        {{end}}
 {{template "footer.html"}}
     </div>
 {{template "js.html"}}
