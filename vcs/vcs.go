@@ -53,7 +53,7 @@ type WorkingCopy interface {
 // across working copies.
 //
 // The String method can return the same string as Rev, but in some VCSs
-// (like Git or Mercurial), the full identifier is not ideal for display.
+// (like Git or Mercurial) the full identifier is not ideal for display.
 // String should return a more user-friendly string, which might not uniquely
 // identify a changeset.
 type Rev interface {
