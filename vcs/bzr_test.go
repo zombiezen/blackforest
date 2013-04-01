@@ -18,6 +18,9 @@ func newIsolatedBazaarWC(path string, c mockCommander) *commandWC {
 
 func TestBazaarInit(t *testing.T) {
 	wc := newIsolatedBazaarWC("/wc", mockCommander{})
+	if want := ".bzr"; wc.c.specialDir != want {
+		t.Errorf("wc.c.specialDir = %q; want %q", wc.c.specialDir, want)
+	}
 	if wc.c.checkout != "branch" {
 		t.Errorf("wc.c.checkout = %q; want %q", wc.c.checkout, "branch")
 	}

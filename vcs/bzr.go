@@ -3,11 +3,7 @@ package vcs
 import (
 	"bytes"
 	"errors"
-	"os"
-	"path/filepath"
 )
-
-const bzrDir = ".bzr"
 
 // Bazaar implements the VCS interface for interacting with Bazaar.
 type Bazaar struct {
@@ -23,20 +19,11 @@ var _ VCS = new(Bazaar)
 func (bzr *Bazaar) init() {
 	if bzr.c.vcs == nil {
 		bzr.c.init(bzr, "bzr", bzr.Program, bzr.commander)
+		bzr.c.specialDir = ".bzr"
 		bzr.c.checkout = "branch"
 		bzr.c.remove = "remove"
 		bzr.c.rename = "mv"
 		bzr.c.renameFlags = []string{"--after"}
-		bzr.c.isWC = func(path string) (bool, error) {
-			fi, err := os.Stat(filepath.Join(path, bzrDir))
-			if err != nil {
-				if os.IsNotExist(err) {
-					return false, nil
-				}
-				return false, err
-			}
-			return fi.IsDir(), nil
-		}
 		bzr.c.current = func(wc *commandWC) (Rev, error) {
 			return bzrVersionInfo(wc)
 		}

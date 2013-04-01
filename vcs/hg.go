@@ -3,11 +3,7 @@ package vcs
 import (
 	"encoding/hex"
 	"errors"
-	"os"
-	"path/filepath"
 )
-
-const hgDir = ".hg"
 
 // Mercurial implements the VCS interface for interacting with Mercurial.
 type Mercurial struct {
@@ -23,20 +19,11 @@ var _ VCS = new(Mercurial)
 func (hg *Mercurial) init() {
 	if hg.c.vcs == nil {
 		hg.c.init(hg, "hg", hg.Program, hg.commander)
+		hg.c.specialDir = ".hg"
 		hg.c.checkout = "clone"
 		hg.c.remove = "remove"
 		hg.c.rename = "rename"
 		hg.c.renameFlags = []string{"--after"}
-		hg.c.isWC = func(path string) (bool, error) {
-			fi, err := os.Stat(filepath.Join(path, hgDir))
-			if err != nil {
-				if os.IsNotExist(err) {
-					return false, nil
-				}
-				return false, err
-			}
-			return fi.IsDir(), nil
-		}
 		hg.c.current = func(wc *commandWC) (Rev, error) {
 			return hgIdentify(wc)
 		}

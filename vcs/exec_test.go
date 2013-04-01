@@ -119,9 +119,10 @@ func newCommandWC(path string, mc mockCommander) *commandWC {
 	return &commandWC{
 		path: path,
 		c: &commandVCS{
-			name:      "commandVCS",
-			program:   "CMD",
-			commander: &mc,
+			name:       "commandVCS",
+			specialDir: ".CMD",
+			program:    "CMD",
+			commander:  &mc,
 
 			checkout:    "CMDCHECKOUT",
 			remove:      "CMDREMOVE",

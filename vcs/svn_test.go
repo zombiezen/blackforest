@@ -17,6 +17,9 @@ func newIsolatedSubversionWC(path string, c mockCommander) subversionWC {
 
 func TestSubversionInit(t *testing.T) {
 	wc := newIsolatedSubversionWC("/wc", mockCommander{})
+	if want := ".svn"; wc.c.specialDir != want {
+		t.Errorf("wc.c.specialDir = %q; want %q", wc.c.specialDir, want)
+	}
 	if wc.c.checkout != "checkout" {
 		t.Errorf("wc.c.checkout = %q; want %q", wc.c.checkout, "checkout")
 	}

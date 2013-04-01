@@ -3,12 +3,8 @@ package vcs
 import (
 	"encoding/xml"
 	"errors"
-	"os"
-	"path/filepath"
 	"strconv"
 )
-
-const svnDir = ".svn"
 
 // Subversion implements the VCS interface for interacting with Subversion.
 type Subversion struct {
@@ -24,18 +20,9 @@ var _ VCS = new(Subversion)
 func (svn *Subversion) init() {
 	if svn.c.vcs == nil {
 		svn.c.init(svn, "svn", svn.Program, svn.commander)
+		svn.c.specialDir = ".svn"
 		svn.c.checkout = "checkout"
 		svn.c.remove = "delete"
-		svn.c.isWC = func(path string) (bool, error) {
-			fi, err := os.Stat(filepath.Join(path, svnDir))
-			if err != nil {
-				if os.IsNotExist(err) {
-					return false, nil
-				}
-				return false, err
-			}
-			return fi.IsDir(), nil
-		}
 		svn.c.current = func(wc *commandWC) (Rev, error) {
 			var v struct {
 				Entry struct {

@@ -3,6 +3,7 @@ package vcs
 import (
 	"errors"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -39,10 +40,11 @@ func (e execCmd) SetDir(dir string) {
 }
 
 type commandVCS struct {
-	vcs       VCS
-	name      string
-	program   string
-	commander commander
+	vcs        VCS
+	name       string
+	program    string
+	commander  commander
+	specialDir string
 
 	// Command names
 	checkout    string
@@ -50,7 +52,6 @@ type commandVCS struct {
 	rename      string
 	renameFlags []string
 
-	isWC     func(path string) (bool, error)
 	current  func(*commandWC) (Rev, error)
 	parseRev func(*commandWC, string) (Rev, error)
 }
@@ -75,7 +76,14 @@ func (c *commandVCS) cmd(args ...string) command {
 }
 
 func (c *commandVCS) IsWorkingCopy(path string) (bool, error) {
-	return c.isWC(path)
+	fi, err := os.Stat(filepath.Join(path, c.specialDir))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return fi.IsDir(), nil
 }
 
 func (c *commandVCS) WorkingCopy(path string) (WorkingCopy, error) {

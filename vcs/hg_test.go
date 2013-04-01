@@ -18,6 +18,9 @@ func newIsolatedMercurialWC(path string, c mockCommander) mercurialWC {
 
 func TestMercurialInit(t *testing.T) {
 	wc := newIsolatedMercurialWC("/wc", mockCommander{})
+	if want := ".hg"; wc.c.specialDir != want {
+		t.Errorf("wc.c.specialDir = %q; want %q", wc.c.specialDir, want)
+	}
 	if wc.c.checkout != "clone" {
 		t.Errorf("wc.c.checkout = %q; want %q", wc.c.checkout, "clone")
 	}
