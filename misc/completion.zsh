@@ -25,6 +25,9 @@ __glados_complete() {
         'import[import project(s) from JSON]'
         'checkout[check out project from version control]'
         'co[check out project from version control]'
+        'search[full text search for projects]'
+        'web[run web server]'
+        'verify[check a catalog for consistency]'
     )
     globalflags+=(
         '-catalog=[path to catalog directory]:file:_path_files -/'
@@ -48,7 +51,7 @@ __glados_complete() {
         return
     }
     case ${words[2]} in
-    init|list|ls|search)
+    init|list|ls|verify|search)
         _arguments : ${globalflags[@]}
         ;;
     show|info)
@@ -68,7 +71,7 @@ __glados_complete() {
         _arguments : ${globalflags[@]} \
             '-created=[project creation date, formatted as RFC3339]' \
             '-description=[human-readable project description]' \
-            '-path=[path of working copy]:file:_path_files -/' \
+            '-path=[path of working copy]:file:_files' \
             '-shortname=[identifier for project]' \
             '-tags=[comma-separated tags to assign to the new project]' \
             '-url=[project homepage]' \
@@ -82,7 +85,7 @@ __glados_complete() {
             '-deltags=[delete tags from the project, separated by commas]' \
             '-description=[human-readable project description]' \
             '-name=[human-readable name of project]' \
-            '-path=[path of working copy]:file:_path_files -/' \
+            '-path=[path of working copy]:file:_files' \
             "-tags=[set the project's tags, separated by commas]" \
             '-url=[project homepage]' \
             '-vcs=[type of VCS for project]:vcs:__glados_vcs' \
@@ -102,6 +105,13 @@ __glados_complete() {
         _arguments : ${globalflags[@]} \
             ':project:__glados_list' \
             ':file:_path_files -/'
+        ;;
+    web)
+        _arguments : ${globalflags[@]} \
+            '-listen=[address to listen for HTTP]' \
+            '-refresh=[interval between catalog cache refreshes]' \
+            '-staticdir=[static directory]:file:_path_files -/' \
+            '-templatedir=[template directory]:file:_path_files -/'
         ;;
     esac
 }
