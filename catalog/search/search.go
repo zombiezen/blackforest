@@ -57,7 +57,8 @@ func (ts *textSearch) Search(q string) ([]Result, error) {
 	} else if query == nil {
 		return []Result{}, nil
 	}
-	m := ts.search(query)
+	m := make(resultMap)
+	ts.search(query, m)
 	results := make([]Result, 0, len(m))
 	for _, r := range m {
 		results = append(results, *r)
@@ -66,20 +67,21 @@ func (ts *textSearch) Search(q string) ([]Result, error) {
 	return results, nil
 }
 
-func (ts *textSearch) search(q queryAST) map[string]*Result {
+func (ts *textSearch) search(q queryAST, results resultMap) {
 	switch q := q.(type) {
 	case queryAnd:
-		return ts.searchAnd(q)
+		ts.searchAnd(q, results)
 	case queryOr:
-		return ts.searchOr(q)
+		ts.searchOr(q, results)
 	case queryNot:
-		return ts.searchNot(q)
+		ts.searchNot(q, results)
 	case token:
-		return ts.searchToken(q)
+		ts.searchToken(q, results)
 	case tagAtom:
-		return ts.searchTagAtom(q)
+		ts.searchTagAtom(q, results)
+	default:
+		panic("unknown queryAST type")
 	}
-	panic("unknown queryAST type")
 }
 
 // A resultMap is a mapping from short name to Result.
@@ -100,94 +102,90 @@ func (m resultMap) Put(r *Result) {
 	m[r.ShortName] = r
 }
 
-func (ts *textSearch) searchAnd(q queryAnd) resultMap {
+// Clear deletes all keys from m.
+func (m resultMap) Clear() {
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+func (ts *textSearch) searchAnd(q queryAnd, results resultMap) {
+	// Because AND is an intersection, start with the first term and filter
+	// the set as we go.  If the number of results is ever zero, we're finished.
+
 	if len(q) == 0 {
-		return resultMap{}
+		return
 	}
 
-	// Map
-	maps := make([]resultMap, 0, len(q))
-	minIdx := -1
-	for _, subq := range q {
-		ret := ts.search(subq)
-		maps = append(maps, ret)
-		if minIdx == -1 || len(ret) < len(maps[minIdx]) {
-			minIdx = len(maps)
-		}
+	// First term
+	ts.search(q[0], results)
+	if len(results) == 0 {
+		return
+	}
+	for _, r := range results {
+		r.Relevance /= float32(len(q))
 	}
 
-	// Reduce
-	maxResults := len(maps[minIdx])
-	if maxResults == 0 {
-		return resultMap{}
-	}
-	results := make(resultMap, maxResults)
-	for sn := range maps[minIdx] {
-		result := &Result{
-			ShortName: sn,
-		}
-		for _, m := range maps {
-			if r := m[sn]; r == nil {
-				result.Relevance = 0
-				break
+	// Subsequent terms
+	m := make(resultMap)
+	for _, subq := range q[1:] {
+		ts.search(subq, m)
+		for sn, r0 := range results {
+			if r, ok := m[sn]; ok {
+				r0.Relevance += r.Relevance / float32(len(q))
 			} else {
-				result.Relevance += r.Relevance / float32(len(q))
+				delete(results, sn)
+				if len(results) == 0 {
+					return
+				}
 			}
 		}
-		if result.Relevance > 0 {
-			results.Put(result)
-		}
+		m.Clear()
 	}
-	return results
 }
 
-func (ts *textSearch) searchOr(q queryOr) resultMap {
+func (ts *textSearch) searchOr(q queryOr, results resultMap) {
 	if len(q) == 0 {
-		return resultMap{}
+		return
 	}
 
-	results := make(resultMap)
+	m := make(resultMap)
 	for _, subq := range q {
-		ret := ts.search(subq)
-		for _, r := range ret {
+		ts.search(subq, m)
+		for _, r := range m {
 			results.Get(r.ShortName).Relevance += r.Relevance
 		}
+		m.Clear()
 	}
-	return results
 }
 
-func (ts *textSearch) searchNot(q queryNot) resultMap {
-	m := ts.search(q.ast)
-	results := make(resultMap, len(ts.list)-len(m))
+func (ts *textSearch) searchNot(q queryNot, results resultMap) {
+	m := make(resultMap)
+	ts.search(q.ast, m)
 	for _, sn := range ts.list {
 		if m[sn] == nil {
 			results.Put(&Result{ShortName: sn, Relevance: 1.0})
 		}
 	}
-	return results
 }
 
-func (ts *textSearch) searchToken(q token) resultMap {
+func (ts *textSearch) searchToken(q token, results resultMap) {
 	tsi := ts.i[fold(string(q))]
 	if len(tsi) == 0 {
-		return resultMap{}
+		return
 	}
-	results := make(resultMap)
 	for _, ent := range tsi {
 		results.Get(ent.shortName).Relevance += ent.kind.Weight()
 	}
 	// XXX(light): should results be normalized?
-	return results
 }
 
-func (ts *textSearch) searchTagAtom(q tagAtom) resultMap {
-	results := make(resultMap)
+func (ts *textSearch) searchTagAtom(q tagAtom, results resultMap) {
 	for _, ent := range ts.i[fold(string(q))] {
 		if ent.kind == kindTag {
 			results.Put(&Result{ShortName: ent.shortName, Relevance: 1.0})
 		}
 	}
-	return results
 }
 
 func (ts *textSearch) build(sn string) error {
