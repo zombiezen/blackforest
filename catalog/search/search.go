@@ -4,7 +4,6 @@ package search
 import (
 	"log"
 	"sort"
-	"strings"
 	"unicode"
 
 	"bitbucket.org/zombiezen/glados/catalog"
@@ -170,7 +169,7 @@ func (ts *textSearch) searchNot(q queryNot, results resultMap) {
 }
 
 func (ts *textSearch) searchToken(q token, results resultMap) {
-	tsi := ts.i[fold(string(q))]
+	tsi := ts.i[sanitizeTerm(string(q))]
 	if len(tsi) == 0 {
 		return
 	}
@@ -181,11 +180,23 @@ func (ts *textSearch) searchToken(q token, results resultMap) {
 }
 
 func (ts *textSearch) searchTagAtom(q tagAtom, results resultMap) {
-	for _, ent := range ts.i[fold(string(q))] {
+	for _, ent := range ts.i[sanitizeTerm(string(q))] {
 		if ent.kind == kindTag {
 			results.Put(&Result{ShortName: ent.shortName, Relevance: 1.0})
 		}
 	}
+}
+
+func sanitizeTerm(s string) string {
+	r := []rune(s)
+	fold(r)
+	for i := len(r) - 1; i >= 0; i-- {
+		if !isTokenizeRune(r[i]) {
+			copy(r[i:], r[i+1:])
+			r = r[:len(r)-1]
+		}
+	}
+	return string(r)
 }
 
 func (ts *textSearch) build(sn string) error {
@@ -193,25 +204,90 @@ func (ts *textSearch) build(sn string) error {
 	if err != nil {
 		return err
 	}
-	ts.index(sn, kindShortName, sn)
-	ts.index(sn, kindName, tokenize(p.Name)...)
-	ts.index(sn, kindDescription, tokenize(p.Description)...)
+	ts.index(sn, kindShortName, [][]rune{fold([]rune(sn))})
+	ts.index(sn, kindName, tokenize(fold([]rune(p.Name))))
+	ts.index(sn, kindDescription, tokenize(fold([]rune(p.Description))))
 	for _, tag := range p.Tags {
-		ts.index(sn, kindTag, tag)
-		if parts := strings.Split(tag, "-"); len(parts) > 1 {
-			ts.index(sn, kindTagPart, parts...)
+		t := fold([]rune(tag))
+		ts.index(sn, kindTag, [][]rune{t})
+		if parts := tokenize(t); len(parts) > 1 {
+			ts.index(sn, kindTagPart, parts)
 		}
 	}
 	return nil
 }
 
-func (ts *textSearch) index(sn string, kind entryKind, words ...string) {
+func (ts *textSearch) index(sn string, kind entryKind, words [][]rune) {
 	for _, w := range words {
-		if w != "" {
-			w = fold(w)
-			ts.i[w] = append(ts.i[w], indexEntry{sn, kind})
+		if len(w) > 0 {
+			sw := string(w)
+			ts.i[sw] = append(ts.i[sw], indexEntry{sn, kind})
 		}
 	}
+}
+
+// fold changes every rune in s to its least equivalent folded case, according
+// to unicode.SimpleFold and returns s.
+func fold(s []rune) []rune {
+	for i, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z':
+			// the only characters in ASCII that need folding are lowercase
+			s[i] = r - 'a' + 'A'
+		case r < 128:
+			// do nothing
+		default:
+			rr := unicode.SimpleFold(r)
+			for rr > r {
+				rr = unicode.SimpleFold(rr)
+			}
+			s[i] = rr
+		}
+	}
+	return s
+}
+
+// tokenize splits a slice of runes s around each instance of one or more
+// consecutive non-alphanumeric characters, returning an array of folded
+// substrings or an empty list if s contains only non-alphanumerics.
+func tokenize(s []rune) [][]rune {
+	// borrowed from strings.FieldsFunc in standard library
+
+	n := 0
+	inField := false
+	for _, rune := range s {
+		wasInField := inField
+		inField = isTokenizeRune(rune)
+		if inField && !wasInField {
+			n++
+		}
+	}
+
+	a := make([][]rune, n)
+	na := 0
+	fieldStart := -1
+	for i, rune := range s {
+		if !isTokenizeRune(rune) {
+			if fieldStart >= 0 {
+				a[na] = s[fieldStart:i]
+				na++
+				fieldStart = -1
+			}
+		} else if fieldStart == -1 {
+			fieldStart = i
+		}
+	}
+	if fieldStart >= 0 {
+		a[na] = s[fieldStart:]
+	}
+
+	return a
+}
+
+var tokenizeRanges = []*unicode.RangeTable{unicode.Letter, unicode.Number}
+
+func isTokenizeRune(r rune) bool {
+	return unicode.IsOneOf(tokenizeRanges, r)
 }
 
 type indexEntry struct {
@@ -240,34 +316,6 @@ var kindWeights = [...]float32{
 
 func (k entryKind) Weight() float32 {
 	return kindWeights[k]
-}
-
-func fold(s string) string {
-	runes := []rune(s)
-	for i, r := range runes {
-		switch {
-		case r >= 'a' && r <= 'z':
-			// the only characters in ASCII that need folding are lowercase
-			runes[i] = r - 'a' + 'A'
-		case r < 128:
-			// do nothing
-		default:
-			rr := unicode.SimpleFold(r)
-			for rr > r {
-				rr = unicode.SimpleFold(rr)
-			}
-			runes[i] = rr
-		}
-	}
-	return string(runes)
-}
-
-func tokenize(s string) []string {
-	t := strings.Fields(s)
-	for i := range t {
-		t[i] = fold(t[i])
-	}
-	return t
 }
 
 type byRelevance []Result

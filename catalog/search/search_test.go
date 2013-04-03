@@ -48,6 +48,18 @@ func TestTextSearch(t *testing.T) {
 			[]string{"go"},
 		},
 		{
+			"software.",
+			mockCatalog{
+				"go": &catalog.Project{
+					ShortName:   "go",
+					Name:        "Go",
+					Tags:        catalog.TagSet{"compiler", "external", "lang-c", "lang-go", "language"},
+					Description: "Go is an open source programming environment that makes it easy to build simple, reliable, and efficient software.",
+				},
+			},
+			[]string{"go"},
+		},
+		{
 			"bacon",
 			mockCatalog{
 				"go": &catalog.Project{
@@ -283,7 +295,7 @@ func TestFold(t *testing.T) {
 		{asciiPunctuation, asciiPunctuation},
 	}
 	for _, test := range tests {
-		f := fold(test.S)
+		f := string(fold([]rune(test.S)))
 		if f != test.Folded {
 			t.Errorf("fold(%q) = %q; want %q", test.S, f, test.Folded)
 		}
@@ -297,11 +309,12 @@ func BenchmarkFoldASCII(b *testing.B) {
 	for i := 0; i < n; i++ {
 		r = append(r, rune(i%128))
 	}
-	s := string(r)
+	buf := make([]rune, len(r))
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		fold(s)
+		copy(buf, r)
+		fold(buf)
 	}
 	b.SetBytes(n)
 }
@@ -313,13 +326,72 @@ func BenchmarkFold(b *testing.B) {
 	for i := 0; i < n; i++ {
 		r = append(r, rune(i))
 	}
-	s := string(r)
+	buf := make([]rune, len(r))
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		fold(s)
+		copy(buf, r)
+		fold(buf)
 	}
 	b.SetBytes(n)
+}
+
+func TestSanitizeTerm(t *testing.T) {
+	tests := []struct{
+		term string
+		s string
+	}{
+		{"", ""},
+		{"A", "A"},
+		{"a", "A"},
+		{"a.", "A"},
+	}
+	for _, test := range tests {
+		s := sanitizeTerm(test.term)
+		if s != test.s {
+			t.Errorf("sanitizeTerm(%q) = %q; want %q", test.term, s, test.s)
+		}
+	}
+}
+
+func TestTokenize(t *testing.T) {
+	tests := []struct{
+		s string
+		a []string
+	}{
+		{"", []string{}},
+		{" ", []string{}},
+		{" \t ", []string{}},
+		{" abc ", []string{"abc"}},
+		{"1 2 3 4", []string{"1", "2", "3", "4"}},
+		{"1. 2. 3. -4.", []string{"1", "2", "3", "4"}},
+	}
+	for _, test := range tests {
+		a := makeStringArray(tokenize([]rune(test.s)))
+		if !strarrEq(a, test.a) {
+			t.Errorf("tokenize(%q) = %v; want %v", test.s, a, test.a)
+		}
+	}
+}
+
+func makeStringArray(a [][]rune) []string {
+	s := make([]string, len(a))
+	for i := range a {
+		s[i] = string(a[i])
+	}
+	return s
+}
+
+func strarrEq(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 type mockCatalog map[string]*catalog.Project
