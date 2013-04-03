@@ -272,15 +272,15 @@ func BenchmarkTextSearchOr(b *testing.B) {
 }
 
 func TestFold(t *testing.T) {
+	const asciiPunctuation = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~\x7f"
 	tests := []struct {
 		S      string
 		Folded string
 	}{
 		{"", ""},
-		{"A", "A"},
-		{"a", "A"},
-		{"Hello, World!", "HELLO, WORLD!"},
-		{"hello, world!", "HELLO, WORLD!"},
+		{"abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"},
+		{"ABCDEFGHIJKLMNOPQRSTUVWXYZ", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"},
+		{asciiPunctuation, asciiPunctuation},
 	}
 	for _, test := range tests {
 		f := fold(test.S)
@@ -288,6 +288,22 @@ func TestFold(t *testing.T) {
 			t.Errorf("fold(%q) = %q; want %q", test.S, f, test.Folded)
 		}
 	}
+}
+
+func BenchmarkFoldASCII(b *testing.B) {
+	const n = 65536
+	b.StopTimer()
+	r := make([]rune, 0, n)
+	for i := 0; i < n; i++ {
+		r = append(r, rune(i%128))
+	}
+	s := string(r)
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		fold(s)
+	}
+	b.SetBytes(n)
 }
 
 func BenchmarkFold(b *testing.B) {

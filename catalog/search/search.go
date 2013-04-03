@@ -243,13 +243,21 @@ func (k entryKind) Weight() float32 {
 }
 
 func fold(s string) string {
-	runes := make([]rune, 0, len(s))
-	for _, r := range s {
-		rr := unicode.SimpleFold(r)
-		for rr > r {
-			rr = unicode.SimpleFold(rr)
+	runes := []rune(s)
+	for i, r := range runes {
+		switch {
+		case r >= 'a' && r <= 'z':
+			// the only characters in ASCII that need folding are lowercase
+			runes[i] = r - 'a' + 'A'
+		case r < 128:
+			// do nothing
+		default:
+			rr := unicode.SimpleFold(r)
+			for rr > r {
+				rr = unicode.SimpleFold(rr)
+			}
+			runes[i] = rr
 		}
-		runes = append(runes, rr)
 	}
 	return string(runes)
 }
