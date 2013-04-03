@@ -219,9 +219,9 @@ func newTestCatalog() catalog.Catalog {
 	for i := 0; i < 1000; i++ {
 		sn := "PROJECT_" + strconv.Itoa(i)
 		cat[sn] = &catalog.Project{
-			ShortName: sn,
-			Name: sn,
-			Tags: catalog.TagSet{"junk"},
+			ShortName:   sn,
+			Name:        sn,
+			Tags:        catalog.TagSet{"junk"},
 			Description: "Lorem ipsum",
 		}
 	}
@@ -237,28 +237,38 @@ func BenchmarkTextSearchIndex(b *testing.B) {
 	}
 }
 
-func BenchmarkTextSearchAnd(b *testing.B) {
+func searchBenchmark(b *testing.B, query string) {
 	b.StopTimer()
 	cat := newTestCatalog()
 	searcher, _ := NewTextSearch(cat)
 	ts := searcher.(*textSearch)
-	q, _ := parseQuery("go go go go go go go")
+	q, _ := parseQuery(query)
+	m := make(resultMap)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		ts.search(q)
+		ts.search(q, m)
+		m.Clear()
 	}
 }
 
+func BenchmarkTextSearchNotFound(b *testing.B) {
+	searchBenchmark(b, "NIL")
+}
+
+func BenchmarkTextSearchOne(b *testing.B) {
+	searchBenchmark(b, "Go")
+}
+
+func BenchmarkTextSearchLots(b *testing.B) {
+	searchBenchmark(b, "Lorem")
+}
+
+func BenchmarkTextSearchAnd(b *testing.B) {
+	searchBenchmark(b, "go go go go go go go")
+}
+
 func BenchmarkTextSearchOr(b *testing.B) {
-	b.StopTimer()
-	cat := newTestCatalog()
-	searcher, _ := NewTextSearch(cat)
-	ts := searcher.(*textSearch)
-	q, _ := parseQuery("PYTHON OR GO OR PYTHON OR GO OR PYTHON")
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		ts.search(q)
-	}
+	searchBenchmark(b, "PYTHON OR GO OR PYTHON OR GO OR PYTHON")
 }
 
 func TestFold(t *testing.T) {
