@@ -106,19 +106,13 @@ func (ts *textSearch) searchAnd(q queryAnd) resultMap {
 	}
 
 	// Map
-	c := make(chan resultMap)
-	for _, subq := range q {
-		go func(subq queryAST) {
-			c <- ts.search(subq)
-		}(subq)
-	}
 	maps := make([]resultMap, 0, len(q))
 	minIdx := -1
-	for nret := 0; nret < len(q); nret++ {
-		ret := <-c
+	for _, subq := range q {
+		ret := ts.search(subq)
 		maps = append(maps, ret)
 		if minIdx == -1 || len(ret) < len(maps[minIdx]) {
-			minIdx = nret
+			minIdx = len(maps)
 		}
 	}
 
@@ -152,15 +146,9 @@ func (ts *textSearch) searchOr(q queryOr) resultMap {
 		return resultMap{}
 	}
 
-	c := make(chan resultMap)
-	for _, subq := range q {
-		go func(subq queryAST) {
-			c <- ts.search(subq)
-		}(subq)
-	}
 	results := make(resultMap)
-	for nret := 0; nret < len(q); nret++ {
-		ret := <-c
+	for _, subq := range q {
+		ret := ts.search(subq)
 		for _, r := range ret {
 			results.Get(r.ShortName).Relevance += r.Relevance
 		}
