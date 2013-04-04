@@ -96,7 +96,15 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 		return err
 	}
 
-	go refreshEnvJob(env, *refresh)
+	go func() {
+		for t := range time.Tick(*refresh) {
+			if err := refreshEnv(env); err == nil {
+				log.Println("refresh took", time.Since(t))
+			} else {
+				log.Println("refresh failed:", err)
+			}
+		}
+	}()
 
 	return http.ListenAndServe(*addr, env.router)
 }
@@ -350,35 +358,31 @@ func staticDirRoute(r *mux.Router, prefix, path string) *mux.Route {
 	})
 }
 
-func refreshEnvJob(env *webEnv, d time.Duration) {
-	for t := range time.Tick(d) {
-		env.RLock()
-		cat := env.realCat
-		env.RUnlock()
+func refreshEnv(env *webEnv) error {
+	env.RLock()
+	cat := env.realCat
+	env.RUnlock()
 
-		// Refresh cache and searcher
-		// Even though the cache can be recreated using RefreshAll, we don't
-		// want to block requests for that long.  Creating a new cache uses a
-		// bit more memory during refresh, but does not affect QPS.
-		cache, err := catalog.NewCache(cat)
-		if err != nil {
-			log.Println("refresh cache:", err)
-			continue
-		}
-		searcher, err := search.NewTextSearch(cache)
-		if err != nil {
-			log.Println("refresh search:", err)
-			continue
-		}
-
-		// Update environment (temporarily blocks requests)
-		env.Lock()
-		env.cat = cache
-		env.searcher = searcher
-		env.Unlock()
-
-		log.Println("refresh took", time.Since(t))
+	// Refresh cache and searcher
+	// Even though the cache can be recreated using RefreshAll, we don't
+	// want to block requests for that long.  Creating a new cache uses a
+	// bit more memory during refresh, but does not affect QPS.
+	cache, err := catalog.NewCache(cat)
+	if err != nil {
+		return err
 	}
+	searcher, err := search.NewTextSearch(cache)
+	if err != nil {
+		return err
+	}
+
+	// Update environment (temporarily blocks requests)
+	env.Lock()
+	env.cat = cache
+	env.searcher = searcher
+	env.Unlock()
+
+	return nil
 }
 
 type tagInfo struct {
