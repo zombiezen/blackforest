@@ -18,8 +18,8 @@ type Result struct {
 	Relevance float32
 }
 
+// textSearch is a Searcher that can perform a full text search.
 type textSearch struct {
-	c    catalog.Catalog
 	i    map[string][]indexEntry
 	tags map[string][]string
 	list []string
@@ -35,19 +35,22 @@ func NewTextSearch(cat catalog.Catalog) (Searcher, error) {
 		return nil, err
 	}
 	ts := &textSearch{
-		c:    cat,
 		i:    make(map[string][]indexEntry),
 		tags: make(map[string][]string),
 		list: names,
 	}
-	for _, n := range names {
-		if err := ts.build(n); err != nil {
+	for _, sn := range names {
+		p, err := cat.GetProject(sn)
+		if err != nil {
 			return nil, err
 		}
+		ts.build(p)
 	}
 	return ts, nil
 }
 
+// Search parses a query according to the grammar at https://bitbucket.org/zombiezen/glados/wiki/Search
+// and then finds all matching projects, sorted by decreasing relevance.
 func (ts *textSearch) Search(q string) ([]Result, error) {
 	query, err := parseQuery(q)
 	if err != nil {
@@ -65,6 +68,7 @@ func (ts *textSearch) Search(q string) ([]Result, error) {
 	return results, nil
 }
 
+// search executes the query q and stores the matches in results.
 func (ts *textSearch) search(q queryAST, results resultMap) {
 	switch q := q.(type) {
 	case queryAnd:
@@ -188,11 +192,9 @@ func (ts *textSearch) searchTagAtom(q tagAtom, results resultMap) {
 	}
 }
 
-func (ts *textSearch) build(sn string) error {
-	p, err := ts.c.GetProject(sn)
-	if err != nil {
-		return err
-	}
+// build adds the project to the index.
+func (ts *textSearch) build(p *catalog.Project) {
+	sn := p.ShortName
 	ts.index(sn, kindShortName, [][]rune{fold([]rune(sn))})
 	ts.index(sn, kindName, tokenize(fold([]rune(p.Name))))
 	ts.index(sn, kindDescription, tokenize(fold([]rune(p.Description))))
@@ -202,9 +204,9 @@ func (ts *textSearch) build(sn string) error {
 		ts.index(sn, kindTag, [][]rune{t})
 		ts.index(sn, kindTagPart, tokenize(t))
 	}
-	return nil
 }
 
+// indexTag associates a tag with a short name.
 func (ts *textSearch) indexTag(sn string, tag []rune) {
 	stag := string(tag)
 	indexed := ts.tags[stag]
@@ -217,6 +219,7 @@ func (ts *textSearch) indexTag(sn string, tag []rune) {
 	ts.tags[stag] = indexed
 }
 
+// index associates words with a short name.
 func (ts *textSearch) index(sn string, kind entryKind, words [][]rune) {
 	for _, w := range words {
 		if len(w) > 0 {
