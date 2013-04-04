@@ -17,7 +17,6 @@ type Searcher interface {
 // Result stores a search result for a project.
 type Result struct {
 	ShortName string
-	Snippet   string
 	Relevance float32
 }
 

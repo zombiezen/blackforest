@@ -5,9 +5,87 @@ import (
 	"strings"
 )
 
+// FindTerms identifies the byte index pairs of the terms in query q.
+func FindTerms(q string, text string) []int {
+	ast, err := parseQuery(q)
+	if err != nil {
+		return []int{}
+	}
+	terms := extractTerms(ast)
+	if len(terms) == 0 {
+		return []int{}
+	}
+	foldedTerms := make([][]rune, len(terms))
+	for i, term := range terms {
+		foldedTerms[i] = fold([]rune(term))
+	}
+
+	runes := fold([]rune(text))
+	pairs := make([]int, 0)
+	tokenStart := -1
+	for i, r := range runes {
+		if !isTokenizeRune(r) {
+			if tokenStart >= 0 {
+				tok := runes[tokenStart:i]
+				for _, term := range foldedTerms {
+					if runesEq(tok, term) {
+						pairs = append(pairs, tokenStart, i)
+						break
+					}
+				}
+				tokenStart = -1
+			}
+		} else if tokenStart == -1 {
+			tokenStart = i
+		}
+	}
+	if tokenStart >= 0 {
+		tok := runes[tokenStart:len(runes)]
+		for _, term := range foldedTerms {
+			if runesEq(tok, term) {
+				pairs = append(pairs, tokenStart, len(runes))
+				break
+			}
+		}
+	}
+	return pairs
+}
+
+func runesEq(a, b []rune) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 type queryAST interface {
 	String() string
 	isQueryAST()
+}
+
+func extractTerms(ast queryAST) []string {
+	switch ast := ast.(type) {
+	case token:
+		return []string{string(ast)}
+	case queryAnd:
+		var terms []string
+		for _, q := range ast {
+			terms = append(terms, extractTerms(q)...)
+		}
+		return terms
+	case queryOr:
+		var terms []string
+		for _, q := range ast {
+			terms = append(terms, extractTerms(q)...)
+		}
+		return terms
+	}
+	return []string{}
 }
 
 func parseQuery(q string) (ast queryAST, err error) {

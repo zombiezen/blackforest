@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"html"
 	"html/template"
 	"log"
 	"net/http"
@@ -79,16 +80,17 @@ func cmdWeb(set *subcmd.Set, cmd *subcmd.Command, args []string) error {
 	env.tmpl = template.New("")
 	webapp.AddFuncs(env.tmpl, env.router)
 	env.tmpl.Funcs(template.FuncMap{
-		"prettyurl":    prettyurl,
-		"ellipsis":     ellipsis,
-		"stringeq":     func(a, b string) bool { return a == b },
-		"inteq":        func(a, b int) bool { return a == b },
-		"rfc3339":      rfc3339,
-		"milliseconds": milliseconds,
-		"prevPage":     prevPage,
-		"nextPage":     nextPage,
-		"prevPageList": prevPageList,
-		"nextPageList": nextPageList,
+		"prettyurl":     prettyurl,
+		"ellipsis":      ellipsis,
+		"stringeq":      func(a, b string) bool { return a == b },
+		"inteq":         func(a, b int) bool { return a == b },
+		"rfc3339":       rfc3339,
+		"milliseconds":  milliseconds,
+		"prevPage":      prevPage,
+		"nextPage":      nextPage,
+		"prevPageList":  prevPageList,
+		"nextPageList":  nextPageList,
+		"searchSnippet": searchSnippet,
 	})
 	if _, err := env.tmpl.ParseGlob(filepath.Join(*templateDir, "*.html")); err != nil {
 		return err
@@ -536,6 +538,25 @@ func nextPageList(curr, n int, size int) []int {
 		list = append(list, i)
 	}
 	return list
+}
+
+func searchSnippet(query string, description string) template.HTML {
+	pairs := search.FindTerms(query, description)
+	parts := make([]string, 0, len(pairs)+1)
+	last := 0
+	for _, pos := range pairs {
+		parts = append(parts, description[last:pos])
+		last = pos
+	}
+	parts = append(parts, description[last:])
+
+	for i := range parts {
+		parts[i] = html.EscapeString(parts[i])
+		if i%2 == 1 {
+			parts[i] = "<b>" + parts[i] + "</b>"
+		}
+	}
+	return template.HTML(strings.Join(parts, ""))
 }
 
 type stable struct {
