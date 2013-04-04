@@ -3,6 +3,7 @@ package search
 import (
 	"strconv"
 	"testing"
+	"unicode"
 
 	"bitbucket.org/zombiezen/glados/catalog"
 )
@@ -337,9 +338,9 @@ func BenchmarkFold(b *testing.B) {
 }
 
 func TestSanitizeTerm(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		term string
-		s string
+		s    string
 	}{
 		{"", ""},
 		{"A", "A"},
@@ -355,7 +356,7 @@ func TestSanitizeTerm(t *testing.T) {
 }
 
 func TestTokenize(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		s string
 		a []string
 	}{
@@ -392,6 +393,21 @@ func strarrEq(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func TestIsTokenizeRune(t *testing.T) {
+	allowed := []*unicode.RangeTable{unicode.Letter, unicode.Number}
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if mine, actual := isTokenizeRune(r), unicode.IsOneOf(allowed, r); mine != actual {
+			t.Errorf("isTokenizeRune(%q) = %t; want %t", r, mine, actual)
+		}
+	}
+}
+
+func BenchmarkIsTokenizeRune(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		isTokenizeRune(0x10ffff)
+	}
 }
 
 type mockCatalog map[string]*catalog.Project
