@@ -37,6 +37,18 @@ func TestTextSearch(t *testing.T) {
 			[]string{"go"},
 		},
 		{
+			"Compiler",
+			mockCatalog{
+				"go": &catalog.Project{
+					ShortName:   "go",
+					Name:        "Go",
+					Tags:        catalog.TagSet{"compiler", "external", "lang-c", "lang-go", "language"},
+					Description: "Go is an open source programming environment that makes it easy to build simple, reliable, and efficient software.",
+				},
+			},
+			[]string{"go"},
+		},
+		{
 			"lang-c",
 			mockCatalog{
 				"go": &catalog.Project{
@@ -61,7 +73,18 @@ func TestTextSearch(t *testing.T) {
 			[]string{"go"},
 		},
 		{
-			// XXX(light): not sure whether this is desired, but documenting as a test case.
+			"langc",
+			mockCatalog{
+				"go": &catalog.Project{
+					ShortName:   "go",
+					Name:        "Go",
+					Tags:        catalog.TagSet{"compiler", "external", "lang-c", "lang-go", "language"},
+					Description: "Go is an open source programming environment that makes it easy to build simple, reliable, and efficient software.",
+				},
+			},
+			[]string{},
+		},
+		{
 			"tag:langc",
 			mockCatalog{
 				"go": &catalog.Project{
@@ -71,7 +94,7 @@ func TestTextSearch(t *testing.T) {
 					Description: "Go is an open source programming environment that makes it easy to build simple, reliable, and efficient software.",
 				},
 			},
-			[]string{"go"},
+			[]string{},
 		},
 		{
 			"programming",
@@ -374,20 +397,20 @@ func BenchmarkFold(b *testing.B) {
 	b.SetBytes(n)
 }
 
-func TestSanitizeTerm(t *testing.T) {
+func TestStripNonToken(t *testing.T) {
 	tests := []struct {
 		term string
 		s    string
 	}{
 		{"", ""},
 		{"A", "A"},
-		{"a", "A"},
-		{"a.", "A"},
+		{"a", "a"},
+		{"a.", "a"},
 	}
 	for _, test := range tests {
-		s := sanitizeTerm(test.term)
+		s := string(stripNonToken([]rune(test.term)))
 		if s != test.s {
-			t.Errorf("sanitizeTerm(%q) = %q; want %q", test.term, s, test.s)
+			t.Errorf("stripNonToken(%q) = %q; want %q", test.term, s, test.s)
 		}
 	}
 }

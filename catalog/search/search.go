@@ -23,6 +23,7 @@ type Result struct {
 type textSearch struct {
 	c    catalog.Catalog
 	i    map[string][]indexEntry
+	tags map[string][]string
 	list []string
 }
 
@@ -38,6 +39,7 @@ func NewTextSearch(cat catalog.Catalog) (Searcher, error) {
 	ts := &textSearch{
 		c:    cat,
 		i:    make(map[string][]indexEntry),
+		tags: make(map[string][]string),
 		list: names,
 	}
 	for _, n := range names {
@@ -168,26 +170,24 @@ func (ts *textSearch) searchNot(q queryNot, results resultMap) {
 }
 
 func (ts *textSearch) searchToken(q token, results resultMap) {
-	tsi := ts.i[sanitizeTerm(string(q))]
-	if len(tsi) == 0 {
+	qr := fold([]rune(string(q)))
+	for _, ent := range ts.i[string(qr)] {
+		results.Get(ent.shortName).Relevance += ent.kind.Weight()
+	}
+	stripped := stripNonToken(qr)
+	if len(stripped) == len(qr) {
 		return
 	}
-	for _, ent := range tsi {
+	for _, ent := range ts.i[string(stripped)] {
 		results.Get(ent.shortName).Relevance += ent.kind.Weight()
 	}
 	// XXX(light): should results be normalized?
 }
 
 func (ts *textSearch) searchTagAtom(q tagAtom, results resultMap) {
-	for _, ent := range ts.i[string(fold([]rune(string(q))))] {
-		if ent.kind == kindTag {
-			results.Put(&Result{ShortName: ent.shortName, Relevance: 1.0})
-		}
+	for _, sn := range ts.tags[string(fold([]rune(string(q))))] {
+		results.Put(&Result{ShortName: sn, Relevance: 1.0})
 	}
-}
-
-func sanitizeTerm(s string) string {
-	return string(stripNonToken(fold([]rune(s))))
 }
 
 func stripNonToken(r []rune) []rune {
@@ -212,14 +212,23 @@ func (ts *textSearch) build(sn string) error {
 	ts.index(sn, kindDescription, tokenize(fold([]rune(p.Description))))
 	for _, tag := range p.Tags {
 		t := fold([]rune(tag))
+		ts.indexTag(sn, t)
 		ts.index(sn, kindTag, [][]rune{t})
-		if parts := tokenize(t); len(parts) > 1 {
-			ts.index(sn, kindTagPart, parts)
-		}
-		t = stripNonToken(t)
-		ts.index(sn, kindTag, [][]rune{t})
+		ts.index(sn, kindTagPart, tokenize(t))
 	}
 	return nil
+}
+
+func (ts *textSearch) indexTag(sn string, tag []rune) {
+	stag := string(tag)
+	indexed := ts.tags[stag]
+	for _, indexedShortName := range indexed {
+		if indexedShortName == sn {
+			return
+		}
+	}
+	indexed = append(indexed, sn)
+	ts.tags[stag] = indexed
 }
 
 func (ts *textSearch) index(sn string, kind entryKind, words [][]rune) {
