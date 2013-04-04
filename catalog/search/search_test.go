@@ -37,6 +37,43 @@ func TestTextSearch(t *testing.T) {
 			[]string{"go"},
 		},
 		{
+			"lang-c",
+			mockCatalog{
+				"go": &catalog.Project{
+					ShortName:   "go",
+					Name:        "Go",
+					Tags:        catalog.TagSet{"compiler", "external", "lang-c", "lang-go", "language"},
+					Description: "Go is an open source programming environment that makes it easy to build simple, reliable, and efficient software.",
+				},
+			},
+			[]string{"go"},
+		},
+		{
+			"tag:lang-c",
+			mockCatalog{
+				"go": &catalog.Project{
+					ShortName:   "go",
+					Name:        "Go",
+					Tags:        catalog.TagSet{"compiler", "external", "lang-c", "lang-go", "language"},
+					Description: "Go is an open source programming environment that makes it easy to build simple, reliable, and efficient software.",
+				},
+			},
+			[]string{"go"},
+		},
+		{
+			// XXX(light): not sure whether this is desired, but documenting as a test case.
+			"tag:langc",
+			mockCatalog{
+				"go": &catalog.Project{
+					ShortName:   "go",
+					Name:        "Go",
+					Tags:        catalog.TagSet{"compiler", "external", "lang-c", "lang-go", "language"},
+					Description: "Go is an open source programming environment that makes it easy to build simple, reliable, and efficient software.",
+				},
+			},
+			[]string{"go"},
+		},
+		{
 			"programming",
 			mockCatalog{
 				"go": &catalog.Project{

@@ -179,7 +179,7 @@ func (ts *textSearch) searchToken(q token, results resultMap) {
 }
 
 func (ts *textSearch) searchTagAtom(q tagAtom, results resultMap) {
-	for _, ent := range ts.i[sanitizeTerm(string(q))] {
+	for _, ent := range ts.i[string(fold([]rune(string(q))))] {
 		if ent.kind == kindTag {
 			results.Put(&Result{ShortName: ent.shortName, Relevance: 1.0})
 		}
@@ -187,15 +187,19 @@ func (ts *textSearch) searchTagAtom(q tagAtom, results resultMap) {
 }
 
 func sanitizeTerm(s string) string {
-	r := []rune(s)
-	fold(r)
+	return string(stripNonToken(fold([]rune(s))))
+}
+
+func stripNonToken(r []rune) []rune {
+	// TODO(light): this function should have a better name
+
 	for i := len(r) - 1; i >= 0; i-- {
 		if !isTokenizeRune(r[i]) {
 			copy(r[i:], r[i+1:])
 			r = r[:len(r)-1]
 		}
 	}
-	return string(r)
+	return r
 }
 
 func (ts *textSearch) build(sn string) error {
@@ -212,6 +216,8 @@ func (ts *textSearch) build(sn string) error {
 		if parts := tokenize(t); len(parts) > 1 {
 			ts.index(sn, kindTagPart, parts)
 		}
+		t = stripNonToken(t)
+		ts.index(sn, kindTag, [][]rune{t})
 	}
 	return nil
 }
