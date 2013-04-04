@@ -4,7 +4,6 @@ package search
 import (
 	"log"
 	"sort"
-	"unicode"
 
 	"bitbucket.org/zombiezen/glados/catalog"
 )
@@ -75,7 +74,7 @@ func (ts *textSearch) search(q queryAST, results resultMap) {
 		ts.searchOr(q, results)
 	case queryNot:
 		ts.searchNot(q, results)
-	case token:
+	case term:
 		ts.searchToken(q, results)
 	case tagAtom:
 		ts.searchTagAtom(q, results)
@@ -110,14 +109,14 @@ func (m resultMap) Clear() {
 }
 
 func (ts *textSearch) searchAnd(q queryAnd, results resultMap) {
-	// Because AND is an intersection, start with the first term and filter
+	// Because AND is an intersection, start with the first subquery and filter
 	// the set as we go.  If the number of results is ever zero, we're finished.
 
 	if len(q) == 0 {
 		return
 	}
 
-	// First term
+	// First subquery
 	ts.search(q[0], results)
 	if len(results) == 0 {
 		return
@@ -126,7 +125,7 @@ func (ts *textSearch) searchAnd(q queryAnd, results resultMap) {
 		r.Relevance /= float32(len(q))
 	}
 
-	// Subsequent terms
+	// Subsequent subqueries
 	m := make(resultMap)
 	for _, subq := range q[1:] {
 		ts.search(subq, m)
@@ -169,12 +168,12 @@ func (ts *textSearch) searchNot(q queryNot, results resultMap) {
 	}
 }
 
-func (ts *textSearch) searchToken(q token, results resultMap) {
+func (ts *textSearch) searchToken(q term, results resultMap) {
 	qr := fold([]rune(string(q)))
 	for _, ent := range ts.i[string(qr)] {
 		results.Get(ent.shortName).Relevance += ent.kind.Weight()
 	}
-	stripped := stripNonToken(qr)
+	stripped := stripTokenSep(qr)
 	if len(stripped) == len(qr) {
 		return
 	}
@@ -185,21 +184,9 @@ func (ts *textSearch) searchToken(q token, results resultMap) {
 }
 
 func (ts *textSearch) searchTagAtom(q tagAtom, results resultMap) {
-	for _, sn := range ts.tags[string(fold([]rune(string(q))))] {
+	for _, sn := range ts.tags[foldString(string(q))] {
 		results.Put(&Result{ShortName: sn, Relevance: 1.0})
 	}
-}
-
-func stripNonToken(r []rune) []rune {
-	// TODO(light): this function should have a better name
-
-	for i := len(r) - 1; i >= 0; i-- {
-		if !isTokenizeRune(r[i]) {
-			copy(r[i:], r[i+1:])
-			r = r[:len(r)-1]
-		}
-	}
-	return r
 }
 
 func (ts *textSearch) build(sn string) error {
@@ -238,70 +225,6 @@ func (ts *textSearch) index(sn string, kind entryKind, words [][]rune) {
 			ts.i[sw] = append(ts.i[sw], indexEntry{sn, kind})
 		}
 	}
-}
-
-// fold changes every rune in s to its least equivalent folded case, according
-// to unicode.SimpleFold and returns s.
-func fold(s []rune) []rune {
-	for i, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z':
-			// the only characters in ASCII that need folding are lowercase
-			s[i] = r - 'a' + 'A'
-		case r < 128:
-			// do nothing
-		default:
-			rr := unicode.SimpleFold(r)
-			for rr > r {
-				rr = unicode.SimpleFold(rr)
-			}
-			s[i] = rr
-		}
-	}
-	return s
-}
-
-// tokenize splits a slice of runes s around each instance of one or more
-// consecutive non-alphanumeric characters, returning an array of folded
-// substrings or an empty list if s contains only non-alphanumerics.
-func tokenize(s []rune) [][]rune {
-	// borrowed from strings.FieldsFunc in standard library
-
-	n := 0
-	inField := false
-	for _, rune := range s {
-		wasInField := inField
-		inField = isTokenizeRune(rune)
-		if inField && !wasInField {
-			n++
-		}
-	}
-
-	a := make([][]rune, n)
-	na := 0
-	fieldStart := -1
-	for i, rune := range s {
-		if !isTokenizeRune(rune) {
-			if fieldStart >= 0 {
-				a[na] = s[fieldStart:i]
-				na++
-				fieldStart = -1
-			}
-		} else if fieldStart == -1 {
-			fieldStart = i
-		}
-	}
-	if fieldStart >= 0 {
-		a[na] = s[fieldStart:]
-	}
-
-	return a
-}
-
-var tokenizeRanges = []*unicode.RangeTable{unicode.Letter, unicode.Number}
-
-func isTokenizeRune(r rune) bool {
-	return unicode.IsOneOf(tokenizeRanges, r)
 }
 
 type indexEntry struct {

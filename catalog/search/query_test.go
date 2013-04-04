@@ -11,11 +11,11 @@ func TestParseQuery(t *testing.T) {
 		Expect queryAST
 	}{
 		{"", nil},
-		{"hello", token("hello")},
+		{"hello", term("hello")},
 		{"tag:hello", tagAtom("hello")},
-		{"-hello", queryNot{token("hello")}},
-		{"hello world", queryAnd{token("hello"), token("world")}},
-		{"hello OR world", queryOr{token("hello"), token("world")}},
+		{"-hello", queryNot{term("hello")}},
+		{"hello world", queryAnd{term("hello"), term("world")}},
+		{"hello OR world", queryOr{term("hello"), term("world")}},
 	}
 	for _, test := range tests {
 		ast, err := parseQuery(test.Query)

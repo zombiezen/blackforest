@@ -24,7 +24,7 @@ func FindTerms(q string, text string) []int {
 	pairs := make([]int, 0)
 	tokenStart := -1
 	for i, r := range runes {
-		if !isTokenizeRune(r) {
+		if isTokenSep(r) {
 			if tokenStart >= 0 {
 				tok := runes[tokenStart:i]
 				for _, term := range foldedTerms {
@@ -70,7 +70,7 @@ type queryAST interface {
 
 func extractTerms(ast queryAST) []string {
 	switch ast := ast.(type) {
-	case token:
+	case term:
 		return []string{string(ast)}
 	case queryAnd:
 		var terms []string
@@ -173,11 +173,11 @@ func (p *queryParser) parseAtom() queryAST {
 	default:
 		p.backup()
 		return nil
-	case tokenItem:
-		return token(item.value)
+	case termItem:
+		return term(item.value)
 	case tagItem:
 		item = p.next()
-		if item.kind != tokenItem {
+		if item.kind != termItem {
 			return nil
 		}
 		return tagAtom(item.value)
@@ -228,15 +228,15 @@ func (q queryNot) String() string {
 	return "-(" + q.ast.String() + ")"
 }
 
-type token string
+type term string
 
-func (token) isQueryAST() {}
+func (term) isQueryAST() {}
 
-func (t token) String() string {
+func (t term) String() string {
 	return string(t)
 }
 
-func (t token) GoString() string {
+func (t term) GoString() string {
 	return "search.token(" + strconv.Quote(string(t)) + ")"
 }
 

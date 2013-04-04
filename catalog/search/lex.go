@@ -15,7 +15,7 @@ type itemKind int
 const (
 	invalidItem itemKind = iota
 	eofItem
-	tokenItem
+	termItem
 	orItem
 	notItem
 	tagItem
@@ -129,10 +129,10 @@ func lexDefault(l *queryLexer) stateFn {
 	}
 
 	l.backup()
-	return lexToken
+	return lexTerm
 }
 
-func lexToken(l *queryLexer) stateFn {
+func lexTerm(l *queryLexer) stateFn {
 	for {
 		r := l.next()
 		if r == eof || unicode.IsSpace(r) || r == '(' || r == ')' {
@@ -146,11 +146,11 @@ func lexToken(l *queryLexer) stateFn {
 		l.pos = l.start + len(tagPrefix)
 		l.emit(tagItem)
 		l.pos = end
-		l.emit(tokenItem)
+		l.emit(termItem)
 	} else if l.input[l.start:l.pos] == orOperator {
 		l.emit(orItem)
 	} else {
-		l.emit(tokenItem)
+		l.emit(termItem)
 	}
 	return lexDefault
 }

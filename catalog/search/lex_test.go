@@ -11,11 +11,11 @@ func TestLexQuery(t *testing.T) {
 	}{
 		{"", []item{{eofItem, ""}}},
 		{" ", []item{{eofItem, ""}}},
-		{"hello", []item{{tokenItem, "hello"}, {eofItem, ""}}},
-		{"tag:hello", []item{{tagItem, "tag:"}, {tokenItem, "hello"}, {eofItem, ""}}},
-		{"-hello", []item{{notItem, "-"}, {tokenItem, "hello"}, {eofItem, ""}}},
-		{"hello world", []item{{tokenItem, "hello"}, {tokenItem, "world"}, {eofItem, ""}}},
-		{"hello OR world", []item{{tokenItem, "hello"}, {orItem, "OR"}, {tokenItem, "world"}, {eofItem, ""}}},
+		{"hello", []item{{termItem, "hello"}, {eofItem, ""}}},
+		{"tag:hello", []item{{tagItem, "tag:"}, {termItem, "hello"}, {eofItem, ""}}},
+		{"-hello", []item{{notItem, "-"}, {termItem, "hello"}, {eofItem, ""}}},
+		{"hello world", []item{{termItem, "hello"}, {termItem, "world"}, {eofItem, ""}}},
+		{"hello OR world", []item{{termItem, "hello"}, {orItem, "OR"}, {termItem, "world"}, {eofItem, ""}}},
 	}
 	for _, test := range tests {
 		items := lexQuery(test.Query)
