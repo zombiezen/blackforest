@@ -2,7 +2,6 @@
 package search
 
 import (
-	"log"
 	"sort"
 
 	"bitbucket.org/zombiezen/glados/catalog"
@@ -265,29 +264,4 @@ func (r byRelevance) Less(i, j int) bool {
 		return r[i].ShortName < r[j].ShortName
 	}
 	return ri > rj
-}
-
-// Concurrent dispatches a search to a list of search systems.
-type Concurrent []Searcher
-
-func (s Concurrent) Search(q string) ([]Result, error) {
-	c := make(chan []Result)
-	for _, ss := range s {
-		go func(ss Searcher) {
-			results, err := ss.Search(q)
-			if err != nil {
-				log.Println("search error:", err)
-			}
-			c <- results
-		}(ss)
-	}
-	results := make([]Result, 0)
-	for _ = range s {
-		r := <-c
-		if len(r) > 0 {
-			results = append(results, r...)
-		}
-	}
-	sort.Sort(byRelevance(results))
-	return results, nil
 }
