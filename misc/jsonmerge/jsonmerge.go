@@ -1,6 +1,6 @@
 // The jsonmerge command performs an ancestor merge on a JSON object.
 //
-// https://bitbucket.org/zombiezen/glados/wiki/JSON%20Merge.md
+// https://bitbucket.org/zombiezen/blackforest/wiki/JSON%20Merge.md
 package main
 
 import (

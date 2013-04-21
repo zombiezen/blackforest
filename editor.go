@@ -11,7 +11,7 @@ import (
 
 // runEditor opens the user's editor populated with text and returns the modified text.
 func runEditor(text string) (string, error) {
-	const tempFilePrefix = "glados-editor-"
+	const tempFilePrefix = "blackforest-editor-"
 
 	f, err := ioutil.TempFile("", tempFilePrefix)
 	if err != nil {

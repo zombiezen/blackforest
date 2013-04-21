@@ -3,7 +3,7 @@
 #
 # Heavily inspired by go's zsh completion
 
-__glados_complete() {
+__blackforest_complete() {
     typeset -a commands globalflags
     commands+=(
         'init[create a catalog]'
@@ -36,18 +36,18 @@ __glados_complete() {
         ':command:'
     )
     if (( CURRENT == 2 )); then
-        # explain glados commands
-        _values 'glados commands' ${commands[@]}
+        # explain blackforest commands
+        _values 'blackforest commands' ${commands[@]}
         return
     fi
-    __glados_list() {
+    __blackforest_list() {
         local expl projects
         declare -a projects
-        projects=($(glados list 2>/dev/null))
+        projects=($(blackforest list 2>/dev/null))
         _wanted projects expl 'projects' compadd "$@" - "${projects[@]}"
     }
-    __glados_vcs() {
-        _values 'glados VCS' 'cvs' 'svn' 'git' 'hg' 'bzr' 'darcs'
+    __blackforest_vcs() {
+        _values 'blackforest VCS' 'cvs' 'svn' 'git' 'hg' 'bzr' 'darcs'
         return
     }
     case ${words[2]} in
@@ -59,13 +59,13 @@ __glados_complete() {
             ${globalflags[@]} \
             '-json[print project as JSON]' \
             '-rfc3339[print dates as RFC3339]' \
-            '*:projects:__glados_list'
+            '*:projects:__blackforest_list'
         ;;
     path|describe|desc)
-        _arguments : ${globalflags[@]} ':projects:__glados_list'
+        _arguments : ${globalflags[@]} ':projects:__blackforest_list'
         ;;
     delete|del|rm)
-        _arguments : ${globalflags[@]} '*:projects:__glados_list'
+        _arguments : ${globalflags[@]} '*:projects:__blackforest_list'
         ;;
     create)
         _arguments : ${globalflags[@]} \
@@ -75,7 +75,7 @@ __glados_complete() {
             '-shortname=[identifier for project]' \
             '-tags=[comma-separated tags to assign to the new project]' \
             '-url=[project homepage]' \
-            '-vcs=[type of VCS for project]:vcs:__glados_vcs' \
+            '-vcs=[type of VCS for project]:vcs:__blackforest_vcs' \
             '-vcsurl=[project VCS URL]'
         ;;
     update|up)
@@ -88,22 +88,22 @@ __glados_complete() {
             '-path=[path of working copy]:file:_files' \
             "-tags=[set the project's tags, separated by commas]" \
             '-url=[project homepage]' \
-            '-vcs=[type of VCS for project]:vcs:__glados_vcs' \
+            '-vcs=[type of VCS for project]:vcs:__blackforest_vcs' \
             '-vcsurl=[project VCS URL]' \
-            ':projects:__glados_list'
+            ':projects:__blackforest_list'
         ;;
     rename|mv)
-        _arguments : ${globalflags[@]} ':projects:__glados_list'
+        _arguments : ${globalflags[@]} ':projects:__blackforest_list'
         ;;
     describe|desc)
-        _arguments : ${globalflags[@]} ':projects:__glados_list'
+        _arguments : ${globalflags[@]} ':projects:__blackforest_list'
         ;;
     import)
         _arguments : ${globalflags[@]} '*:file:_files'
         ;;
     checkout|co)
         _arguments : ${globalflags[@]} \
-            ':project:__glados_list' \
+            ':project:__blackforest_list' \
             ':file:_path_files -/'
         ;;
     web)
@@ -116,4 +116,4 @@ __glados_complete() {
     esac
 }
 
-compdef __glados_complete glados
+compdef __blackforest_complete blackforest

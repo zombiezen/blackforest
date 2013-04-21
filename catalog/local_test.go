@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/zombiezen/glados/vcs"
+	"bitbucket.org/zombiezen/blackforest/vcs"
 )
 
 var magicTime = time.Date(2013, 2, 7, 10, 51, 13, 0, time.FixedZone("PST", int(-8*time.Hour/time.Second)))
 
 const exampleProjectJSON = `{
 	"id": "b11dzGs4SQid",
-	"shortname": "glados",
-	"name": "GLaDOS",
+	"shortname": "blackforest",
+	"name": "Black Forest",
 	"description": "Giant Library and Distributed Organizing System",
 	"catalog_time": "2013-02-07T10:51:13-08:00",
 	"create_time": "2013-02-07T10:51:13-08:00",
@@ -30,12 +30,12 @@ func newTestCatalog() (*localCatalog, *mockFilesystem, *mockWC) {
 	fs.makeFile("foo"+sep+"version.json", `{"version": 1}`)
 	fs.makeFile("foo"+sep+"catalog.json", `{
 	"id_to_shortname": {
-		"b11dzGs4SQid": "glados"
+		"b11dzGs4SQid": "blackforest"
 	}
 }`)
 
 	fs.Mkdir("foo" + sep + "projects")
-	fs.makeFile("foo"+sep+"projects"+sep+"glados.json", exampleProjectJSON)
+	fs.makeFile("foo"+sep+"projects"+sep+"blackforest.json", exampleProjectJSON)
 
 	wc := &mockWC{
 		renamed: make(map[string]string),
@@ -78,7 +78,7 @@ func TestLocalCreate(t *testing.T) {
 func TestLocalList(t *testing.T) {
 	cat, _, wc := newTestCatalog()
 	list, err := cat.List()
-	if want := []string{"glados"}; !reflect.DeepEqual(list, want) {
+	if want := []string{"blackforest"}; !reflect.DeepEqual(list, want) {
 		t.Errorf("cat.List() = %q; want %q", list, want)
 	}
 	if err != nil {
@@ -103,7 +103,7 @@ func TestLocalShortName(t *testing.T) {
 	cat, _, wc := newTestCatalog()
 	id := ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d}
 	sn, err := cat.ShortName(id)
-	if want := "glados"; sn != want {
+	if want := "blackforest"; sn != want {
 		t.Errorf("cat.ShortName(%v) = %q; want %q", id, sn, want)
 	}
 	if err != nil {
@@ -126,11 +126,11 @@ func TestLocalShortName(t *testing.T) {
 
 func TestLocalGetProject(t *testing.T) {
 	cat, _, wc := newTestCatalog()
-	proj, err := cat.GetProject("glados")
+	proj, err := cat.GetProject("blackforest")
 	want := &Project{
 		ID:          ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d},
-		ShortName:   "glados",
-		Name:        "GLaDOS",
+		ShortName:   "blackforest",
+		Name:        "Black Forest",
 		Description: "Giant Library and Distributed Organizing System",
 		CatalogTime: magicTime,
 		CreateTime:  magicTime,
@@ -220,7 +220,7 @@ func TestLocalPutProject_Update(t *testing.T) {
 	cat, fs, wc := newTestCatalog()
 	proj := &Project{
 		ID:          id,
-		ShortName:   "glados",
+		ShortName:   "blackforest",
 		Name:        "Teh Foo",
 		Description: "A junk project",
 		Tags:        []string{"foo", "junk"},
@@ -236,7 +236,7 @@ func TestLocalPutProject_Update(t *testing.T) {
 		FileName string
 		Content  string
 	}{
-		{"glados.json", `{"id":"b11dzGs4SQid","shortname":"glados","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/","catalog_time":"2013-02-07T10:51:13-08:00","create_time":"2013-02-07T10:51:13-08:00"}` + "\n"},
+		{"blackforest.json", `{"id":"b11dzGs4SQid","shortname":"blackforest","name":"Teh Foo","description":"A junk project","tags":["foo","junk"],"homepage":"http://example.com/","catalog_time":"2013-02-07T10:51:13-08:00","create_time":"2013-02-07T10:51:13-08:00"}` + "\n"},
 	}
 	for _, fc := range fileChecks {
 		name := filepath.Join(root, "projects", fc.FileName)
@@ -248,7 +248,7 @@ func TestLocalPutProject_Update(t *testing.T) {
 	}
 
 	sn, err := cat.ShortName(id)
-	if want := "glados"; sn != want {
+	if want := "blackforest"; sn != want {
 		t.Errorf("cat.ShortName(%v) = %q; want %q", id, sn, want)
 	}
 	if err != nil {
@@ -303,8 +303,8 @@ func TestLocalPutProject_Rename(t *testing.T) {
 		}
 	}
 
-	if _, ok := fs.files[filepath.Join(root, "projects", "glados.json")]; ok {
-		t.Error("glados.json still exists")
+	if _, ok := fs.files[filepath.Join(root, "projects", "blackforest.json")]; ok {
+		t.Error("blackforest.json still exists")
 	}
 
 	sn, err := cat.ShortName(id)
@@ -318,10 +318,10 @@ func TestLocalPutProject_Rename(t *testing.T) {
 	if want := []string{"projects/foo.json"}; !reflect.DeepEqual(wc.added, want) {
 		t.Errorf("vcs added = %v; want %v", wc.added, want)
 	}
-	if want := []string{"projects/glados.json"}; !reflect.DeepEqual(wc.removed, want) {
+	if want := []string{"projects/blackforest.json"}; !reflect.DeepEqual(wc.removed, want) {
 		t.Errorf("vcs removed = %v; want %v", wc.removed, want)
 	}
-	if want := map[string]string{"projects/glados.json": "projects/foo.json"}; !reflect.DeepEqual(wc.renamed, want) {
+	if want := map[string]string{"projects/blackforest.json": "projects/foo.json"}; !reflect.DeepEqual(wc.renamed, want) {
 		t.Errorf("vcs renamed = %v; want %v", wc.renamed, want)
 	}
 	if !wc.committed {
@@ -336,7 +336,7 @@ func TestLocalPutProject_NameConflict(t *testing.T) {
 	cat, fs, wc := newTestCatalog()
 	proj := &Project{
 		ID:          id,
-		ShortName:   "glados",
+		ShortName:   "blackforest",
 		Name:        "Teh Foo",
 		Description: "A junk project",
 		Tags:        []string{"foo", "junk"},
@@ -350,7 +350,7 @@ func TestLocalPutProject_NameConflict(t *testing.T) {
 		FileName string
 		Content  string
 	}{
-		{"glados.json", exampleProjectJSON},
+		{"blackforest.json", exampleProjectJSON},
 	}
 	for _, fc := range fileChecks {
 		name := filepath.Join(root, "projects", fc.FileName)
@@ -362,7 +362,7 @@ func TestLocalPutProject_NameConflict(t *testing.T) {
 	}
 
 	sn, err := cat.ShortName(ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d})
-	if want := "glados"; sn != want {
+	if want := "blackforest"; sn != want {
 		t.Errorf("cat.ShortName(%v) = %q; want %q", id, sn, want)
 	}
 	if err != nil {

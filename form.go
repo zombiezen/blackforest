@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"bitbucket.org/zombiezen/glados/catalog"
+	"bitbucket.org/zombiezen/blackforest/catalog"
 	"github.com/zombiezen/schema"
 )
 

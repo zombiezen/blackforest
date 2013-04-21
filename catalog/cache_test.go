@@ -8,10 +8,10 @@ import (
 
 func newMockCatalog() mockCatalog {
 	return mockCatalog{
-		"glados": &Project{
+		"blackforest": &Project{
 			ID:          ID{0x6f, 0x5d, 0x5d, 0xcc, 0x6b, 0x38, 0x49, 0x08, 0x9d},
-			ShortName:   "glados",
-			Name:        "GLaDOS",
+			ShortName:   "blackforest",
+			Name:        "Black Forest",
 			Description: "Giant Library and Distributed Organizing System",
 			CatalogTime: magicTime,
 			CreateTime:  magicTime,
@@ -29,7 +29,7 @@ func TestCacheAccess(t *testing.T) {
 	}
 
 	list, err := c.List()
-	if want := []string{"glados"}; !reflect.DeepEqual(list, want) {
+	if want := []string{"blackforest"}; !reflect.DeepEqual(list, want) {
 		t.Errorf("Cache.List() = %q; want %q", list, want)
 	}
 	if err != nil {
@@ -37,35 +37,35 @@ func TestCacheAccess(t *testing.T) {
 	}
 
 	sn, err := c.ShortName(magicID)
-	if sn != "glados" {
-		t.Errorf("Cache.ShortName(%v) = %q; want %q", magicID, sn, "glados")
+	if sn != "blackforest" {
+		t.Errorf("Cache.ShortName(%v) = %q; want %q", magicID, sn, "blackforest")
 	}
 	if err != nil {
 		t.Errorf("Cache.ShortName(%v) error: %v", magicID, err)
 	}
 
-	p, err := c.GetProject("glados")
+	p, err := c.GetProject("blackforest")
 	want := &Project{
 		ID:          magicID,
-		ShortName:   "glados",
-		Name:        "GLaDOS",
+		ShortName:   "blackforest",
+		Name:        "Black Forest",
 		Description: "Giant Library and Distributed Organizing System",
 		CatalogTime: magicTime,
 		CreateTime:  magicTime,
 		Tags:        []string{"go", "http", "os", "tools"},
 	}
 	if !projectEqual(p, want) {
-		t.Errorf("Cache.GetProject(%q) = %v; want %v", "glados", p, want)
+		t.Errorf("Cache.GetProject(%q) = %v; want %v", "blackforest", p, want)
 	}
 	if err != nil {
-		t.Errorf("Cache.GetProject(%q) error: %v", "glados", err)
+		t.Errorf("Cache.GetProject(%q) error: %v", "blackforest", err)
 	}
 
 	if tags, want := newStringSet(c.Tags()), newStringSet([]string{"go", "http", "os", "tools"}); !reflect.DeepEqual(tags, want) {
 		t.Errorf("Cache.Tags() = %v; want %v", tags.Slice(), want.Slice())
 	}
-	if names := c.FindTag("go"); !reflect.DeepEqual(names, []string{"glados"}) {
-		t.Errorf("Cache.FindTag(%q) = %v; want %v", "go", names, []string{"glados"})
+	if names := c.FindTag("go"); !reflect.DeepEqual(names, []string{"blackforest"}) {
+		t.Errorf("Cache.FindTag(%q) = %v; want %v", "go", names, []string{"blackforest"})
 	}
 }
 
@@ -79,8 +79,8 @@ func TestCachePut(t *testing.T) {
 
 	proj := &Project{
 		ID:          magicID,
-		ShortName:   "gladosa",
-		Name:        "GLaDOS",
+		ShortName:   "blackforesta",
+		Name:        "Black Forest",
 		Description: "Giant Library and Distributed Organizing System",
 		CatalogTime: magicTime,
 		CreateTime:  magicTime,
@@ -91,41 +91,41 @@ func TestCachePut(t *testing.T) {
 		t.Errorf("Cache.PutProject(%v) error: %v", proj, err)
 	}
 
-	p, err := c.GetProject("gladosa")
+	p, err := c.GetProject("blackforesta")
 	// to ensure the pointer isn't modified
 	want := &Project{
 		ID:          magicID,
-		ShortName:   "gladosa",
-		Name:        "GLaDOS",
+		ShortName:   "blackforesta",
+		Name:        "Black Forest",
 		Description: "Giant Library and Distributed Organizing System",
 		CatalogTime: magicTime,
 		CreateTime:  magicTime,
 		Tags:        []string{"go", "web", "os", "tools"},
 	}
 	if !projectEqual(p, want) {
-		t.Errorf("Cache.GetProject(%q) = %v; want %v", "gladosa", p, want)
+		t.Errorf("Cache.GetProject(%q) = %v; want %v", "blackforesta", p, want)
 	}
 	if err != nil {
-		t.Errorf("Cache.GetProject(%q) error: %v", "gladosa", err)
+		t.Errorf("Cache.GetProject(%q) error: %v", "blackforesta", err)
 	}
-	if mcProj := mc["gladosa"]; !projectEqual(mcProj, want) {
-		t.Errorf("Cache.cat[%q] = %v; want %v", "gladosa", mcProj, want)
+	if mcProj := mc["blackforesta"]; !projectEqual(mcProj, want) {
+		t.Errorf("Cache.cat[%q] = %v; want %v", "blackforesta", mcProj, want)
 	}
-	if mcProj := mc["glados"]; mcProj != nil {
-		t.Errorf("Cache.cat[%q] = %v; want nil", "glados", mcProj)
+	if mcProj := mc["blackforest"]; mcProj != nil {
+		t.Errorf("Cache.cat[%q] = %v; want nil", "blackforest", mcProj)
 	}
 
-	p, err = c.GetProject("glados")
+	p, err = c.GetProject("blackforest")
 	if p != nil {
-		t.Errorf("Cache.GetProject(%q) = %v; want nil", "glados", p)
+		t.Errorf("Cache.GetProject(%q) = %v; want nil", "blackforest", p)
 	}
 	if err != nil {
-		t.Errorf("Cache.GetProject(%q) error: %v", "glados", err)
+		t.Errorf("Cache.GetProject(%q) error: %v", "blackforest", err)
 	}
 
 	sn, err := c.ShortName(magicID)
-	if sn != "gladosa" {
-		t.Errorf("Cache.ShortName(%v) = %q; want %q", magicID, sn, "gladosa")
+	if sn != "blackforesta" {
+		t.Errorf("Cache.ShortName(%v) = %q; want %q", magicID, sn, "blackforesta")
 	}
 	if err != nil {
 		t.Errorf("Cache.ShortName(%v) error: %v", magicID, err)
@@ -134,8 +134,8 @@ func TestCachePut(t *testing.T) {
 	if tags, want := newStringSet(c.Tags()), newStringSet([]string{"go", "web", "os", "tools"}); !reflect.DeepEqual(tags, want) {
 		t.Errorf("Cache.Tags() = %v; want %v", tags.Slice(), want.Slice())
 	}
-	if names := c.FindTag("web"); !reflect.DeepEqual(names, []string{"gladosa"}) {
-		t.Errorf("Cache.FindTag(%q) = %v; want %v", "web", names, []string{"gladosa"})
+	if names := c.FindTag("web"); !reflect.DeepEqual(names, []string{"blackforesta"}) {
+		t.Errorf("Cache.FindTag(%q) = %v; want %v", "web", names, []string{"blackforesta"})
 	}
 	if names := c.FindTag("http"); len(names) != 0 {
 		t.Errorf("Cache.FindTag(%q) = %v; want %v", "http", names, []string{})
@@ -144,8 +144,8 @@ func TestCachePut(t *testing.T) {
 
 func TestCache_RefreshProject(t *testing.T) {
 	const (
-		projShortName = "glados"
-		projInitName  = "GLaDOS"
+		projShortName = "blackforest"
+		projInitName  = "Black Forest"
 		projNewName   = "FOO"
 	)
 
@@ -215,8 +215,8 @@ func TestCache_RefreshProject(t *testing.T) {
 
 func TestCache_RefreshProject_Delete(t *testing.T) {
 	const (
-		projShortName = "glados"
-		projName      = "GLaDOS"
+		projShortName = "blackforest"
+		projName      = "Black Forest"
 	)
 
 	mc := newMockCatalog()
@@ -286,11 +286,11 @@ func TestCache_RefreshProject_Delete(t *testing.T) {
 
 func TestCache_RefreshProject_Rename(t *testing.T) {
 	const (
-		projShortName    = "glados"
-		projNewShortName = "glados2"
+		projShortName    = "blackforest"
+		projNewShortName = "blackforest2"
 
-		projInitName = "GLaDOS"
-		projNewName  = "GLaDOS 2"
+		projInitName = "Black Forest"
+		projNewName  = "Black Forest 2"
 	)
 
 	mc := newMockCatalog()
@@ -385,8 +385,8 @@ func TestCache_RefreshProject_Rename(t *testing.T) {
 
 func TestCache_RefreshProject_Fail(t *testing.T) {
 	const (
-		projShortName = "glados"
-		projName      = "GLaDOS"
+		projShortName = "blackforest"
+		projName      = "Black Forest"
 	)
 
 	mc := mockFailCatalog{mockCatalog: newMockCatalog()}

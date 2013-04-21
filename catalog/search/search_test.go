@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"bitbucket.org/zombiezen/glados/catalog"
+	"bitbucket.org/zombiezen/blackforest/catalog"
 )
 
 func TestTextSearch(t *testing.T) {

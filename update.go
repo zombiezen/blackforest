@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"bitbucket.org/zombiezen/glados/catalog"
+	"bitbucket.org/zombiezen/blackforest/catalog"
 	"bitbucket.org/zombiezen/subcmd"
 	"github.com/zombiezen/schema"
 )

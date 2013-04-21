@@ -7,5 +7,5 @@ shift
 created="$(hg -R "$root" log -r0 --template='{date|rfc3339date}\n')"
 vcsurl="$(hg -R "$root" paths default | sed 's|^bb://|https://bitbucket.org/|')"
 
-glados create -created="$created" -path="$root" -vcs=hg -vcsurl="$vcsurl" "$@"
+blackforest create -created="$created" -path="$root" -vcs=hg -vcsurl="$vcsurl" "$@"
 exit $?

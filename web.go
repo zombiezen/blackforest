@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/zombiezen/glados/catalog"
-	"bitbucket.org/zombiezen/glados/catalog/search"
+	"bitbucket.org/zombiezen/blackforest/catalog"
+	"bitbucket.org/zombiezen/blackforest/catalog/search"
 	"bitbucket.org/zombiezen/subcmd"
 	"bitbucket.org/zombiezen/webapp"
 	"github.com/gorilla/mux"

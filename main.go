@@ -1,4 +1,4 @@
-// The glados command provides a front-end for a GLaDOS catalog.
+// The blackforest command provides a front-end for a Black Forest catalog.
 package main
 
 import (
@@ -8,16 +8,16 @@ import (
 	"os"
 	"strings"
 
-	"bitbucket.org/zombiezen/glados/catalog"
-	"bitbucket.org/zombiezen/glados/vcs"
+	"bitbucket.org/zombiezen/blackforest/catalog"
+	"bitbucket.org/zombiezen/blackforest/vcs"
 	"bitbucket.org/zombiezen/subcmd"
 )
 
 // Environment variable names
 const (
-	CatalogPathEnv = "GLADOS_PATH"
-	HostEnv        = "GLADOS_HOST"
-	EditorEnv      = "GLADOS_EDITOR"
+	CatalogPathEnv = "BLACKFOREST_PATH"
+	HostEnv        = "BLACKFOREST_HOST"
+	EditorEnv      = "BLACKFOREST_EDITOR"
 
 	globalEditorEnv = "EDITOR"
 )

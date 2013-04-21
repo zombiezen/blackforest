@@ -1,12 +1,12 @@
 #!/bin/zsh
 
-alias G=glados
+alias B=blackforest
 
-Gcd() {
+Bcd() {
     local projpath
-    projpath="$(glados path "$1")"
+    projpath="$(blackforest path "$1")"
     if [ $? -ne 0 ]; then
-        echo "Gcd: no path" 1>&2
+        echo "Bcd: no path" 1>&2
         return 1
     fi
     if [[ -d "$projpath" ]]; then
@@ -16,22 +16,22 @@ Gcd() {
         cd "${projpath:h}"
         return $?
     else
-        echo "Gcd: \"$projpath\" does not exist" 1>&2
+        echo "Bcd: \"$projpath\" does not exist" 1>&2
         return 1
     fi
 }
-compdef '_values "glados projects" $(glados list 2>/dev/null)' Gcd
+compdef '_values "blackforest projects" $(blackforest list 2>/dev/null)' Bcd
 
-Ginfo() {
+Binfo() {
     local word="$1"
     shift
-    glados show "$@" | sed -n 's/^'"$word"':\s*//p'
+    blackforest show "$@" | sed -n 's/^'"$word"':\s*//p'
 }
 
-GPUSH() {
-    hg push -R "$GLADOS_PATH" "$@"
+BPUSH() {
+    hg push -R "$BLACKFOREST_PATH" "$@"
 }
 
-GPULL() {
-    hg pull -R "$GLADOS_PATH" -u "$@"
+BPULL() {
+    hg pull -R "$BLACKFOREST_PATH" -u "$@"
 }

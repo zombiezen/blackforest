@@ -1,7 +1,7 @@
-# GLaDOS
+# Black Forest
 
-GLaDOS is the _**G**iant **L**ibrary **a**nd **D**istributed **O**rganizing **S**ystem_.  Its
-purpose is to organize the vast amount of code I have created over the years.
+Black Forest is a project to organize the vast amount of code I have created over the years.
+Its goals are:
 
 * **Accessibility**: Access and modify code from any computer
 * **Code Reuse**: Search all code
@@ -14,7 +14,7 @@ You must have [Go 1.0](http://golang.org/) installed and your
 [GOPATH](http://golang.org/doc/code.html#GOPATH) set up.  Then, downloading and installing is as
 easy as:
 
-    go get bitbucket.org/zombiezen/glados
+    go get bitbucket.org/zombiezen/blackforest
 
 # License
 
@@ -44,7 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## Go
 
-Portions of GLaDOS are copied from the Go standard library.
+Portions of Black Forest are copied from the Go standard library.
 
 Copyright (c) 2012 The Go Authors. All rights reserved.
 
@@ -76,7 +76,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## Bootstrap
 
-GLaDOS uses [Bootstrap](http://twitter.github.com/bootstrap/), which is released under the
+Black Forest uses [Bootstrap](http://twitter.github.com/bootstrap/), which is released under the
 [Apache License v2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
 Copyright 2012 Twitter, Inc.
@@ -95,7 +95,7 @@ limitations under the License.
 
 ## jQuery
 
-GLaDOS uses [jQuery](http://jquery.com/), which is released under an
+Black Forest uses [jQuery](http://jquery.com/), which is released under an
 [MIT license](http://jquery.org/license/).
 
 Copyright 2013 jQuery Foundation and other contributors

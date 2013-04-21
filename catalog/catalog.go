@@ -1,4 +1,4 @@
-// Package catalog provides access to GLaDOS catalogs.
+// Package catalog provides access to Black Forest catalogs.
 package catalog
 
 import (
@@ -93,7 +93,7 @@ var (
 )
 
 // VersionError is returned when opening a catalog from an incompatible version
-// of GLaDOS.
+// of Black Forest.
 type VersionError int
 
 func (e VersionError) Error() string {

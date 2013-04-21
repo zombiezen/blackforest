@@ -1,4 +1,4 @@
-" Vim plugin for GLaDOS
+" Vim plugin for Black Forest
 " Maintainer: Ross Light <ross@zombiezen.com>
 " License: Copyright (c) 2013, Ross Light. All rights reserved.
 "
@@ -23,14 +23,14 @@
 " (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 " SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function! GladosPath(project)
-  return substitute(system("glados path ".shellescape(a:project)), '[\r\n]\+$', '', '')
+function! BlackForestPath(project)
+  return substitute(system("blackforest path ".shellescape(a:project)), '[\r\n]\+$', '', '')
 endfunction
 
-function! s:CompleteGcd(ArgLead, CmdLine, CursorPos)
-  return system("glados ls")
+function! s:CompleteBcd(ArgLead, CmdLine, CursorPos)
+  return system("blackforest ls")
 endfunction
 
-command! -bar -nargs=1 -complete=custom,s:CompleteGcd Gcd exec 'cd '.escape(GladosPath(<f-args>), ' \')
+command! -bar -nargs=1 -complete=custom,s:CompleteBcd Bcd exec 'cd '.escape(BlackForestPath(<f-args>), ' \')
 
 " vim: ft=vim et ts=8 sts=2 sw=2 tw=80

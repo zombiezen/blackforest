@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/zombiezen/glados/catalog"
+	"bitbucket.org/zombiezen/blackforest/catalog"
 )
 
 func TestProjectFormConstants(t *testing.T) {

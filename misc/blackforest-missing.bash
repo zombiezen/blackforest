@@ -1,8 +1,8 @@
 #!/bin/bash
 
-for name in $(glados ls)
+for name in $(blackforest ls)
 do
-    glados path "$name" > /dev/null
+    blackforest path "$name" > /dev/null
     if [ $? -ne 0 ]
     then
         echo "$name"

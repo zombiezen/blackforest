@@ -1,10 +1,10 @@
-// Package search provides text search in GLaDOS catalogs.
+// Package search provides text search in Black Forest catalogs.
 package search
 
 import (
 	"sort"
 
-	"bitbucket.org/zombiezen/glados/catalog"
+	"bitbucket.org/zombiezen/blackforest/catalog"
 )
 
 // A Searcher implements a textual search.
@@ -49,8 +49,9 @@ func NewTextSearch(cat catalog.Catalog) (Searcher, error) {
 	return ts, nil
 }
 
-// Search parses a query according to the grammar at https://bitbucket.org/zombiezen/glados/wiki/Search
-// and then finds all matching projects, sorted by decreasing relevance.
+// Search parses a query according to the grammar at
+// https://bitbucket.org/zombiezen/blackforest/wiki/Search and then finds all
+// matching projects, sorted by decreasing relevance.
 func (ts *textSearch) Search(q string) ([]Result, error) {
 	query, err := parseQuery(q)
 	if err != nil {

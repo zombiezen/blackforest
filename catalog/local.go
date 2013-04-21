@@ -1,7 +1,7 @@
 package catalog
 
 import (
-	"bitbucket.org/zombiezen/glados/vcs"
+	"bitbucket.org/zombiezen/blackforest/vcs"
 	"io"
 	"os"
 	"path/filepath"

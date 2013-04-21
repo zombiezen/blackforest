@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"bitbucket.org/zombiezen/glados/catalog"
-	"bitbucket.org/zombiezen/glados/catalog/search"
+	"bitbucket.org/zombiezen/blackforest/catalog"
+	"bitbucket.org/zombiezen/blackforest/catalog/search"
 	"bitbucket.org/zombiezen/subcmd"
 )
 
 var commandSet = subcmd.Set{
-	Name:        "glados",
+	Name:        "blackforest",
 	GlobalFlags: globalFlags,
 	Commands: []subcmd.Command{
 		{

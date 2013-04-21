@@ -12,6 +12,6 @@ fi
 
 GO=/usr/local/go/bin/go
 
-initctl stop glados || die "** can't stop service"
+initctl stop blackforest || die "** can't stop service"
 sudo -u <%=user%> GOPATH='<%=gopath%>' $GO install <%=importpath%> || die "** build failed"
-initctl start glados || die "** can't restart service"
+initctl start blackforest || die "** can't restart service"

@@ -1,9 +1,9 @@
-class glados {
-    $importpath = "bitbucket.org/zombiezen/glados"
+class blackforest {
+    $importpath = "bitbucket.org/zombiezen/blackforest"
     $go_url = "http://go.googlecode.com/files/go1.0.3.linux-386.tar.gz"
     $user = "vagrant"
     $gopath = "/home/$user/go"
-    $catalog = "/srv/glados-catalog"
+    $catalog = "/srv/blackforest-catalog"
 
     group { $user:
         ensure => present,
@@ -46,55 +46,55 @@ class glados {
             target => "/vagrant";
     }
 
-    file { "/tmp/glados-deps.bash":
+    file { "/tmp/blackforest-deps.bash":
         ensure => file,
-        content => template("glados/glados-deps.bash"),
+        content => template("blackforest/blackforest-deps.bash"),
         owner => "root",
         group => "root",
         mode => 755,
     }
 
-    exec { "glados-deps":
+    exec { "blackforest-deps":
         require => [
             Exec["fetch-go"],
             Package["git-core"],
             Package["mercurial"],
-            File["/tmp/glados-deps.bash"],
+            File["/tmp/blackforest-deps.bash"],
             File["$gopath/src/$importpath"],
         ],
-        command => "/tmp/glados-deps.bash",
+        command => "/tmp/blackforest-deps.bash",
         environment => "GOPATH=$gopath",
     }
 
-    file { "/home/$user/glados-reload":
+    file { "/home/$user/blackforest-reload":
         ensure => file,
-        content => template("glados/glados-reload.bash"),
+        content => template("blackforest/blackforest-reload.bash"),
         mode => 755,
     }
 
-    exec { "glados-install":
-        require => Exec["glados-deps"],
+    exec { "blackforest-install":
+        require => Exec["blackforest-deps"],
         command => "/usr/local/go/bin/go install $importpath",
         environment => "GOPATH=$gopath",
-        creates => "$gopath/bin/glados",
+        creates => "$gopath/bin/blackforest",
     }
 
-    file { "/etc/init/glados.conf":
+    file { "/etc/init/blackforest.conf":
         mode => 600,
         owner => "root",
         group => "root",
-        content => template("glados/glados.conf"),
+        content => template("blackforest/blackforest.conf"),
     }
 
-    exec { "glados-init":
-        require => Exec["glados-install"],
-        command => "$gopath/bin/glados init -catalog=\"$catalog\"",
+    exec { "blackforest-init":
+        require => Exec["blackforest-install"],
+        command => "$gopath/bin/blackforest init -catalog=\"$catalog\"",
         creates => $catalog,
         user => "root",
     }
 
-    service { "glados":
-        require => [File["/etc/init/glados.conf"], Exec["glados-init"]],
+    service { "blackforest":
+        require => [File["/etc/init/blackforest.conf"], Exec["blackforest-init"]],
         ensure => running,
     }
 }
