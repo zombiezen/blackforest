@@ -30,7 +30,12 @@ func runEditor(text string) (string, error) {
 		// TODO(light): flags
 		c = exec.Command(editor, f.Name())
 	} else {
-		c = exec.Command("sh", "-c", editor+" "+shellEscape(f.Name()))
+		c = exec.Command("sh", "-c", "exec "+editor+" "+shellEscape(f.Name()))
+		tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+		if err != nil {
+			return text, err
+		}
+		c.Stdin, c.Stdout = tty, tty
 	}
 	c.Stderr = os.Stderr
 	cerr := c.Run()
