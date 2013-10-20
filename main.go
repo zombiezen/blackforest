@@ -149,7 +149,7 @@ var knownVCS = []struct {
 	{catalog.CVS, nil},
 	{catalog.Subversion, new(vcs.Subversion)},
 	{catalog.Mercurial, new(vcs.Mercurial)},
-	{catalog.Git, nil},
+	{catalog.Git, new(vcs.Git)},
 	{catalog.Bazaar, new(vcs.Bazaar)},
 	{catalog.Darcs, nil},
 }

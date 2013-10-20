@@ -19,8 +19,9 @@ func TestVCSImpl(t *testing.T) {
 	if _, ok := vc.(*vcs.Mercurial); !ok {
 		t.Errorf(`vcsImpl("hg") is %T; want *vcs.Mercurial`, vc)
 	}
-	if vc = vcsImpl("git"); vc != nil {
-		t.Errorf(`vcsImpl("git") is %T; want nil`, vc)
+	vc = vcsImpl("git")
+	if _, ok := vc.(*vcs.Git); !ok {
+		t.Errorf(`vcsImpl("git") is %T; want *vcs.Git`, vc)
 	}
 	vc = vcsImpl("bzr")
 	if _, ok := vc.(*vcs.Bazaar); !ok {
