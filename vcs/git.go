@@ -5,9 +5,9 @@ import (
 	"errors"
 )
 
-// git implements the VCS interface for interacting with git.
+// Git implements the VCS interface for interacting with Git.
 type Git struct {
-	// Program is the path of the git executable.
+	// Program is the path of the Git executable.
 	Program string
 
 	c commandVCS
@@ -82,7 +82,7 @@ type gitWC struct {
 }
 
 func (wc gitWC) Rename(src, dst string) error {
-	err := wc.Add([]string{src})
+	err := wc.Add([]string{dst})
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,9 @@ func (wc gitWC) Commit(message string, files []string) error {
 
 func (wc gitWC) Update(rev Rev) error {
 	if rev == nil {
-		if err := wc.cmd("pull").Run(); err != nil {
+		// TODO: this may not always be correct, but Update isn't used yet. Fix
+		// if it comes into use
+		if err := wc.cmd([]string{"checkout", "master"}...).Run(); err != nil {
 			return err
 		}
 	} else {
