@@ -14,8 +14,6 @@ type Subversion struct {
 	c commandVCS
 }
 
-var _ VCS = new(Subversion)
-
 func (svn *Subversion) init() {
 	svn.c = commandVCS{
 		vcs:        svn,

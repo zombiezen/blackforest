@@ -13,8 +13,6 @@ type Bazaar struct {
 	c commandVCS
 }
 
-var _ VCS = new(Bazaar)
-
 func (bzr *Bazaar) init() {
 	bzr.c = commandVCS{
 		vcs:         bzr,

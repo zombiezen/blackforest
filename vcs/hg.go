@@ -13,8 +13,6 @@ type Mercurial struct {
 	c commandVCS
 }
 
-var _ VCS = new(Mercurial)
-
 func (hg *Mercurial) init() {
 	hg.c = commandVCS{
 		vcs:         hg,
@@ -70,7 +68,7 @@ func hgIdentify(wc *commandWC, args ...string) (Rev, error) {
 	if err != nil {
 		return nil, &vcsError{Name: wc.c.name, Op: op, Path: wc.path, Err: err}
 	}
-	rev, err := parseIdentifyOutput(out)
+	rev, err := parseHgIdentifyOutput(out)
 	if err != nil {
 		return nil, &vcsError{Name: wc.c.name, Op: op, Path: wc.path, Err: err}
 	}
@@ -126,7 +124,7 @@ func (r mercurialRev) String() string {
 	return hex.EncodeToString(r[:6])
 }
 
-func parseIdentifyOutput(out []byte) (mercurialRev, error) {
+func parseHgIdentifyOutput(out []byte) (mercurialRev, error) {
 	for i := len(out) - 1; i >= 0; i-- {
 		if c := out[i]; c != '\n' && c != '+' {
 			out = out[:i+1]

@@ -178,14 +178,14 @@ func TestParseIdentifyOutput(t *testing.T) {
 		{"0d9c2b3c7bce68ef9950d237eac5ff67f117bff50\n", mercurialRev{}, true},
 	}
 	for _, test := range tests {
-		rev, err := parseIdentifyOutput([]byte(test.Arg))
+		rev, err := parseHgIdentifyOutput([]byte(test.Arg))
 		if err != nil && !test.Error {
-			t.Errorf("parseIdentifyOutput(%q) error: %v", test.Arg, err)
+			t.Errorf("parseHgIdentifyOutput(%q) error: %v", test.Arg, err)
 		} else if err == nil && test.Error {
-			t.Errorf("parseIdentifyOutput(%q) expected an error", test.Arg)
+			t.Errorf("parseHgIdentifyOutput(%q) expected an error", test.Arg)
 		}
 		if rev != test.Rev {
-			t.Errorf("parseIdentifyOutput(%q) = %v; want %v", test.Arg, rev.Rev(), test.Rev.Rev())
+			t.Errorf("parseHgIdentifyOutput(%q) = %v; want %v", test.Arg, rev.Rev(), test.Rev.Rev())
 		}
 	}
 }

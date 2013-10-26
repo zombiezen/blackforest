@@ -201,7 +201,7 @@ func TestGitCommit(t *testing.T) {
 	}
 }
 
-func TestParseRevParseOutput(t *testing.T) {
+func TestGitParseRevParseOutput(t *testing.T) {
 	tests := []struct {
 		Arg   string
 		Rev   gitRev
@@ -217,14 +217,14 @@ func TestParseRevParseOutput(t *testing.T) {
 		{"z0d9c2b3c7bce68ef9950d237eac5ff67f117bff5\n", gitRev{}, true},
 	}
 	for _, test := range tests {
-		rev, err := parseRevParseOutput([]byte(test.Arg))
+		rev, err := parseGitRevParseOutput([]byte(test.Arg))
 		if err != nil && !test.Error {
-			t.Errorf("parseRevParseOutput(%q) error: %v", test.Arg, err)
+			t.Errorf("parseGitRevParseOutput(%q) error: %v", test.Arg, err)
 		} else if err == nil && test.Error {
-			t.Errorf("parseRevParseOutput(%q) expected an error", test.Arg)
+			t.Errorf("parseGitRevParseOutput(%q) expected an error", test.Arg)
 		}
 		if rev != test.Rev {
-			t.Errorf("parseRevParseOutput(%q) = %v; want %v", test.Arg, rev.Rev(), test.Rev.Rev())
+			t.Errorf("parseGitRevParseOutput(%q) = %v; want %v", test.Arg, rev.Rev(), test.Rev.Rev())
 		}
 	}
 }

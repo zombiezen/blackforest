@@ -13,8 +13,6 @@ type Git struct {
 	c commandVCS
 }
 
-var _ VCS = new(Git)
-
 func (git *Git) init() {
 	git.c = commandVCS{
 		vcs:        git,
@@ -70,7 +68,7 @@ func gitCommitHash(wc *commandWC, arg string) (Rev, error) {
 		return nil, &vcsError{Name: wc.c.name, Op: op, Path: wc.path, Err: err}
 	}
 
-	rev, err := parseRevParseOutput(out)
+	rev, err := parseGitRevParseOutput(out)
 	if err != nil {
 		return nil, &vcsError{Name: wc.c.name, Op: op, Path: wc.path, Err: err}
 	}
@@ -130,7 +128,7 @@ func (r gitRev) String() string {
 	return hex.EncodeToString(r[:4])[:7]
 }
 
-func parseRevParseOutput(out []byte) (gitRev, error) {
+func parseGitRevParseOutput(out []byte) (gitRev, error) {
 	for i := len(out) - 1; i >= 0; i-- {
 		if c := out[i]; c != '\n' {
 			out = out[:i+1]
