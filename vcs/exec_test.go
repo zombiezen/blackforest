@@ -12,6 +12,7 @@ import (
 var (
 	errMockCmd     = errors.New("mock command")
 	errTooManyCmds = errors.New("too many commands")
+	errFailCmd     = errors.New("command failed")
 )
 
 type mockCommander []mockCommand
@@ -47,6 +48,9 @@ type mockCommand struct {
 	Dir  string
 
 	Bad bool
+
+	// Fail this command on purpose
+	Fail bool
 }
 
 func (mc *mockCommand) SetDir(dir string) {
@@ -75,7 +79,10 @@ func (mc *mockCommand) Run() error {
 		return errTooManyCmds
 	}
 	mc.Out.Truncate(0)
-	// TODO(light): mock exit codes?
+
+	if mc.Fail {
+		return errFailCmd
+	}
 	return nil
 }
 
@@ -111,7 +118,10 @@ func (mc *mockCommand) Wait() error {
 	if mc.Bad {
 		return errTooManyCmds
 	}
-	// TODO(light): mock exit codes?
+
+	if mc.Fail {
+		return errFailCmd
+	}
 	return nil
 }
 
