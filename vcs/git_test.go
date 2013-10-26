@@ -117,8 +117,8 @@ func TestGitRemove(t *testing.T) {
 }
 
 func TestGitRename(t *testing.T) {
-	const from := "foo"
-	const to := "bar"
+	const from = "foo"
+	const to = "bar"
 	mc := mockCommander{
 		{
 			Out:        *bytes.NewBuffer([]byte{}),

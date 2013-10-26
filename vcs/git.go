@@ -85,7 +85,7 @@ func (wc gitWC) Rename(src, dst string) error {
 	if err := wc.Add([]string{dst}); err != nil {
 		return err
 	}
-	if err = wc.Remove([]string{src}); err != nil {
+	if err := wc.Remove([]string{src}); err != nil {
 		return err
 	}
 	return nil
