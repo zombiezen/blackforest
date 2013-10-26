@@ -49,7 +49,7 @@ type mockCommand struct {
 
 	Bad bool
 
-	// Fail this command on purpose
+	// If Fail is true, then Run or Wait will return errFailCmd.
 	Fail bool
 }
 

@@ -82,16 +82,12 @@ type gitWC struct {
 }
 
 func (wc gitWC) Rename(src, dst string) error {
-	err := wc.Add([]string{dst})
-	if err != nil {
+	if err := wc.Add([]string{dst}); err != nil {
 		return err
 	}
-
-	err = wc.Remove([]string{src})
-	if err != nil {
+	if err = wc.Remove([]string{src}); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -108,8 +104,8 @@ func (wc gitWC) Commit(message string, files []string) error {
 
 func (wc gitWC) Update(rev Rev) error {
 	if rev == nil {
-		// TODO: this may not always be correct, but Update isn't used yet. Fix
-		// if it comes into use
+		// TODO(adam): this may not always be correct, but Update isn't used yet.
+		// Fix if it comes into use
 		if err := wc.cmd([]string{"checkout", "master"}...).Run(); err != nil {
 			return err
 		}

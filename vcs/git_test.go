@@ -117,21 +117,21 @@ func TestGitRemove(t *testing.T) {
 }
 
 func TestGitRename(t *testing.T) {
+	const from := "foo"
+	const to := "bar"
 	mc := mockCommander{
 		{
 			Out:        *bytes.NewBuffer([]byte{}),
 			ExpectDir:  desiredGitPath,
-			ExpectArgs: []string{"git", "add", "--", "bar"},
+			ExpectArgs: []string{"git", "add", "--", to},
 		},
 		{
 			Out:        *bytes.NewBuffer([]byte{}),
 			ExpectDir:  desiredGitPath,
-			ExpectArgs: []string{"git", "rm", "--", "foo"},
+			ExpectArgs: []string{"git", "rm", "--", from},
 		},
 	}
 	wc := newIsolatedGitWC(desiredGitPath, mc)
-	from := "foo"
-	to := "bar"
 	err := wc.Rename(from, to)
 	mc.check(t)
 	if err != nil {
@@ -157,7 +157,7 @@ func TestGitCommit(t *testing.T) {
 			},
 		}
 		wc := newIsolatedGitWC(desiredGitPath, mc)
-		err := wc.Commit("Hello, World!", nil)
+		err := wc.Commit(commitMessage, nil)
 		mc.check(t)
 		if err != nil {
 			t.Errorf("wc.Commit(%q, nil) error: %v", commitMessage, err)
@@ -175,7 +175,7 @@ func TestGitCommit(t *testing.T) {
 		}
 		wc := newIsolatedGitWC(desiredGitPath, mc)
 		files := []string{"foo", "bar"}
-		err := wc.Commit("Hello, World!", files)
+		err := wc.Commit(commitMessage, files)
 		mc.check(t)
 		if err != nil {
 			t.Errorf("wc.Commit(%q, %q) error: %v", commitMessage, files, err)
@@ -193,7 +193,7 @@ func TestGitCommit(t *testing.T) {
 			},
 		}
 		wc := newIsolatedGitWC(desiredGitPath, mc)
-		err := wc.Commit("Hello, World!", nil)
+		err := wc.Commit(commitMessage, nil)
 		mc.check(t)
 		if err != errFailCmd {
 			t.Errorf("wc.Commit(%q, nil) expected error errFailCmd but passed", commitMessage)
